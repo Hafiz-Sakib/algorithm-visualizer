@@ -10,14 +10,22 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TreeRouteImport } from './routes/tree'
+import { Route as StringsRouteImport } from './routes/strings'
 import { Route as SortingRouteImport } from './routes/sorting'
 import { Route as SearchingRouteImport } from './routes/searching'
 import { Route as PathfindingRouteImport } from './routes/pathfinding'
+import { Route as GraphRouteImport } from './routes/graph'
+import { Route as DpRouteImport } from './routes/dp'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TreeRoute = TreeRouteImport.update({
   id: '/tree',
   path: '/tree',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StringsRoute = StringsRouteImport.update({
+  id: '/strings',
+  path: '/strings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SortingRoute = SortingRouteImport.update({
@@ -35,6 +43,16 @@ const PathfindingRoute = PathfindingRouteImport.update({
   path: '/pathfinding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GraphRoute = GraphRouteImport.update({
+  id: '/graph',
+  path: '/graph',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DpRoute = DpRouteImport.update({
+  id: '/dp',
+  path: '/dp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,39 +61,76 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dp': typeof DpRoute
+  '/graph': typeof GraphRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
   '/sorting': typeof SortingRoute
+  '/strings': typeof StringsRoute
   '/tree': typeof TreeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dp': typeof DpRoute
+  '/graph': typeof GraphRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
   '/sorting': typeof SortingRoute
+  '/strings': typeof StringsRoute
   '/tree': typeof TreeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dp': typeof DpRoute
+  '/graph': typeof GraphRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
   '/sorting': typeof SortingRoute
+  '/strings': typeof StringsRoute
   '/tree': typeof TreeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pathfinding' | '/searching' | '/sorting' | '/tree'
+  fullPaths:
+    | '/'
+    | '/dp'
+    | '/graph'
+    | '/pathfinding'
+    | '/searching'
+    | '/sorting'
+    | '/strings'
+    | '/tree'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/pathfinding' | '/searching' | '/sorting' | '/tree'
-  id: '__root__' | '/' | '/pathfinding' | '/searching' | '/sorting' | '/tree'
+  to:
+    | '/'
+    | '/dp'
+    | '/graph'
+    | '/pathfinding'
+    | '/searching'
+    | '/sorting'
+    | '/strings'
+    | '/tree'
+  id:
+    | '__root__'
+    | '/'
+    | '/dp'
+    | '/graph'
+    | '/pathfinding'
+    | '/searching'
+    | '/sorting'
+    | '/strings'
+    | '/tree'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DpRoute: typeof DpRoute
+  GraphRoute: typeof GraphRoute
   PathfindingRoute: typeof PathfindingRoute
   SearchingRoute: typeof SearchingRoute
   SortingRoute: typeof SortingRoute
+  StringsRoute: typeof StringsRoute
   TreeRoute: typeof TreeRoute
 }
 
@@ -86,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/tree'
       fullPath: '/tree'
       preLoaderRoute: typeof TreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/strings': {
+      id: '/strings'
+      path: '/strings'
+      fullPath: '/strings'
+      preLoaderRoute: typeof StringsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sorting': {
@@ -109,6 +171,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PathfindingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/graph': {
+      id: '/graph'
+      path: '/graph'
+      fullPath: '/graph'
+      preLoaderRoute: typeof GraphRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dp': {
+      id: '/dp'
+      path: '/dp'
+      fullPath: '/dp'
+      preLoaderRoute: typeof DpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -121,9 +197,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DpRoute: DpRoute,
+  GraphRoute: GraphRoute,
   PathfindingRoute: PathfindingRoute,
   SearchingRoute: SearchingRoute,
   SortingRoute: SortingRoute,
+  StringsRoute: StringsRoute,
   TreeRoute: TreeRoute,
 }
 export const routeTree = rootRouteImport

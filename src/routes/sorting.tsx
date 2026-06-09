@@ -8,7 +8,7 @@ import { usePlayer } from "../lib/usePlayer";
 export const Route = createFileRoute("/sorting")({
   head: () => ({
     meta: [
-      { title: "Sorting Visualizer — AlgoViz" },
+      { title: "Sorting — AlgoViz" },
       { name: "description", content: "Animated bubble, selection, insertion, merge, and quick sort." },
     ],
   }),
@@ -18,6 +18,22 @@ export const Route = createFileRoute("/sorting")({
 const randomArray = (n: number) =>
   Array.from({ length: n }, () => Math.floor(Math.random() * 95) + 5);
 
+const ALGO_COLOR: Record<SortName, string> = {
+  Bubble: "oklch(0.72 0.19 255)",
+  Selection: "oklch(0.75 0.18 162)",
+  Insertion: "oklch(0.82 0.18 85)",
+  Merge: "oklch(0.68 0.22 22)",
+  Quick: "oklch(0.75 0.18 310)",
+  Heap: "oklch(0.72 0.22 180)",
+  Shell: "oklch(0.80 0.18 45)",
+  Counting: "oklch(0.73 0.20 140)",
+  Radix: "oklch(0.70 0.20 280)",
+  Cocktail: "oklch(0.78 0.18 20)",
+  Gnome: "oklch(0.75 0.18 200)",
+  Comb: "oklch(0.77 0.19 320)",
+  Cycle: "oklch(0.74 0.20 100)",
+};
+
 function SortingPage() {
   const [algo, setAlgo] = useState<SortName>("Bubble");
   const [size, setSize] = useState(30);
@@ -25,7 +41,6 @@ function SortingPage() {
   const [array, setArray] = useState<number[]>(() => randomArray(30));
   const [custom, setCustom] = useState("");
 
-  // Tag each value with a stable id so Framer Motion `layout` can animate swaps.
   const initialItems = useMemo(
     () => array.map((v, i) => ({ id: i, value: v })),
     [array],
@@ -35,59 +50,51 @@ function SortingPage() {
   const { current, index, total, play, pause, reset, stepFwd, stepBack, playing } =
     usePlayer(gen, speed);
 
-  // Map current step's array back onto the original id-tagged items so layout animation works.
   const display = useMemo(() => {
     const arr = current?.array ?? array;
-    // Reconstruct id mapping: find each value's original index by tracking moves.
-    // Simple approach: reorder by value with a multiset match.
     const ids = initialItems.map((x) => x.id);
     const used = new Array(initialItems.length).fill(false);
     return arr.map((v) => {
       const idx = initialItems.findIndex((x, i) => !used[i] && x.value === v);
-      if (idx >= 0) {
-        used[idx] = true;
-        return { id: ids[idx], value: v };
-      }
+      if (idx >= 0) { used[idx] = true; return { id: ids[idx], value: v }; }
       return { id: Math.random(), value: v };
     });
   }, [current, array, initialItems]);
 
   const max = Math.max(...array, 1);
 
-  const shuffle = (n = size) => {
-    setArray(randomArray(n));
-  };
+  const shuffle = (n = size) => { setArray(randomArray(n)); };
 
   const applyCustom = () => {
-    const parts = custom
-      .split(/[,\s]+/)
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    if (parts.length >= 2) {
-      setArray(parts.slice(0, 80));
-      setSize(parts.length);
-    }
+    const parts = custom.split(/[,\s]+/).map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0);
+    if (parts.length >= 2) { setArray(parts.slice(0, 80)); setSize(parts.length); }
   };
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-4 py-2">
+      {/* Header */}
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Sorting</h1>
-          <p className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg" style={{ color: ALGO_COLOR[algo] }}>⟨⟩</span>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Sorting</h1>
+          </div>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
             Compare-and-swap visualizations with animated reordering.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {(Object.keys(SORTERS) as SortName[]).map((name) => (
             <button
               key={name}
               onClick={() => setAlgo(name)}
-              className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                algo === name
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card border-border hover:bg-muted"
-              }`}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 hover:scale-105"
+              style={{
+                background: algo === name ? ALGO_COLOR[name] : "oklch(1 0 0 / 6%)",
+                color: algo === name ? "oklch(0.08 0.02 265)" : "oklch(0.65 0.04 255)",
+                border: `1px solid ${algo === name ? ALGO_COLOR[name] : "oklch(1 0 0 / 10%)"}`,
+                boxShadow: algo === name ? `0 0 12px ${ALGO_COLOR[name]}40` : "none",
+              }}
             >
               {name}
             </button>
@@ -95,8 +102,13 @@ function SortingPage() {
         </div>
       </header>
 
-      <div className="rounded-xl border border-border bg-card p-3">
-        <div className="flex h-[360px] items-end gap-[2px]">
+      {/* Viz */}
+      <div className="rounded-2xl overflow-hidden" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+        <div className="px-3 pt-3 pb-1 flex items-center justify-between">
+          <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "oklch(0.40 0.04 255)" }}>visualization</span>
+          <span className="text-[10px] font-mono" style={{ color: "oklch(0.40 0.04 255)" }}>{array.length} elements</span>
+        </div>
+        <div className="flex h-[240px] sm:h-[320px] md:h-[380px] items-end gap-[2px] px-3 pb-3">
           {display.map((item, i) => {
             const isCompare = current?.compare?.includes(i);
             const isSwap = current?.swap?.includes(i);
@@ -107,22 +119,42 @@ function SortingPage() {
               : isPivot
               ? "var(--warn)"
               : isCompare
-              ? "var(--primary)"
+              ? ALGO_COLOR[algo]
               : isSorted
               ? "var(--accent)"
-              : "oklch(0.78 0.02 256)";
+              : "oklch(1 0 0 / 12%)";
             return (
               <motion.div
                 key={item.id}
                 layout
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                className="flex-1 rounded-t-sm"
-                style={{ height: `${(item.value / max) * 100}%`, background: color }}
+                className="flex-1 rounded-t"
+                style={{
+                  height: `${(item.value / max) * 100}%`,
+                  background: color,
+                  minWidth: "1px",
+                  boxShadow: (isCompare || isSwap || isPivot) ? `0 0 6px ${color}80` : "none",
+                }}
                 title={String(item.value)}
               />
             );
           })}
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 text-[11px]" style={{ color: "oklch(0.50 0.04 255)" }}>
+        {[
+          { color: ALGO_COLOR[algo], label: "Comparing" },
+          { color: "var(--danger)", label: "Swapping" },
+          { color: "var(--warn)", label: "Pivot" },
+          { color: "var(--accent)", label: "Sorted" },
+        ].map((l) => (
+          <span key={l.label} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-sm" style={{ background: l.color }} />
+            {l.label}
+          </span>
+        ))}
       </div>
 
       <Controls
@@ -138,40 +170,33 @@ function SortingPage() {
         total={total}
       />
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-          <label className="text-sm font-medium">Array size: {size}</label>
-          <input
-            type="range"
-            min={5}
-            max={80}
-            value={size}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              setSize(n);
-              shuffle(n);
-            }}
-            className="w-full accent-primary"
-          />
+      {/* Controls panel */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl p-4 space-y-3" style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+          <label className="text-xs font-medium uppercase tracking-wider" style={{ color: "oklch(0.50 0.04 255)" }}>Array Size — {size}</label>
+          <input type="range" min={5} max={80} value={size} onChange={(e) => { const n = Number(e.target.value); setSize(n); shuffle(n); }} className="w-full" />
           <button
             onClick={() => shuffle()}
-            className="h-9 px-3 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+            className="h-8 px-4 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+            style={{ background: ALGO_COLOR[algo], color: "oklch(0.08 0.02 265)", boxShadow: `0 0 12px ${ALGO_COLOR[algo]}30` }}
           >
-            Shuffle
+            ↻ Shuffle
           </button>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-          <label className="text-sm font-medium">Custom data (comma-separated)</label>
+        <div className="rounded-2xl p-4 space-y-3" style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+          <label className="text-xs font-medium uppercase tracking-wider" style={{ color: "oklch(0.50 0.04 255)" }}>Custom Data</label>
           <div className="flex gap-2">
             <input
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
               placeholder="e.g. 12, 5, 33, 8, 21"
-              className="flex-1 h-9 px-3 rounded-md border border-border bg-background text-sm"
+              className="flex-1 h-8 px-3 rounded-lg text-xs font-mono"
+              style={{ background: "oklch(1 0 0 / 5%)", border: "1px solid oklch(1 0 0 / 10%)", color: "oklch(0.85 0.01 255)" }}
             />
             <button
               onClick={applyCustom}
-              className="h-9 px-3 rounded-md text-sm font-medium border border-border bg-card hover:bg-muted"
+              className="h-8 px-3 rounded-lg text-xs font-medium transition-all hover:scale-105"
+              style={{ background: "oklch(1 0 0 / 8%)", color: "oklch(0.75 0.04 255)", border: "1px solid oklch(1 0 0 / 12%)" }}
             >
               Apply
             </button>

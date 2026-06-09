@@ -8,7 +8,7 @@ import { usePlayer } from "../lib/usePlayer";
 export const Route = createFileRoute("/pathfinding")({
   head: () => ({
     meta: [
-      { title: "Pathfinding Visualizer — AlgoViz" },
+      { title: "Pathfinding — AlgoViz" },
       { name: "description", content: "BFS, Dijkstra, and A* on an editable grid." },
     ],
   }),
@@ -26,6 +26,12 @@ const randomWalls = (g: Grid, density = 0.25): Grid =>
   g.map((row) => row.map(() => (Math.random() < density ? 1 : 0)));
 
 type Tool = "wall" | "start" | "end" | "erase";
+
+const ALGO_COLOR: Record<PathName, string> = {
+  BFS: "oklch(0.72 0.19 255)",
+  Dijkstra: "oklch(0.82 0.18 85)",
+  "A*": "oklch(0.68 0.22 22)",
+};
 
 function PathfindingPage() {
   const [algo, setAlgo] = useState<PathName>("A*");
@@ -53,32 +59,45 @@ function PathfindingPage() {
     if (tool === "end") return setEnd({ r, c });
     setGrid((g) =>
       g.map((row, ri) =>
-        ri === r
-          ? row.map((v, ci) => (ci === c ? (tool === "erase" ? 0 : 1) : v))
-          : row,
+        ri === r ? row.map((v, ci) => (ci === c ? (tool === "erase" ? 0 : 1) : v)) : row,
       ),
     );
   };
 
+  const accentColor = ALGO_COLOR[algo];
+
+  const toolConfig: { id: Tool; label: string; color: string }[] = [
+    { id: "wall", label: "Wall", color: "oklch(0.65 0.04 255)" },
+    { id: "erase", label: "Erase", color: "oklch(0.55 0.04 255)" },
+    { id: "start", label: "Start", color: "oklch(0.75 0.18 162)" },
+    { id: "end", label: "End", color: "oklch(0.68 0.22 22)" },
+  ];
+
   return (
-    <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-4 py-2">
+      {/* Header */}
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pathfinding</h1>
-          <p className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg" style={{ color: accentColor }}>◈</span>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Pathfinding</h1>
+          </div>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
             Click cells to draw walls. Drag to paint.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {(Object.keys(PATHFINDERS) as PathName[]).map((name) => (
             <button
               key={name}
               onClick={() => setAlgo(name)}
-              className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                algo === name
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card border-border hover:bg-muted"
-              }`}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 hover:scale-105"
+              style={{
+                background: algo === name ? ALGO_COLOR[name] : "oklch(1 0 0 / 6%)",
+                color: algo === name ? "oklch(0.08 0.02 265)" : "oklch(0.65 0.04 255)",
+                border: `1px solid ${algo === name ? ALGO_COLOR[name] : "oklch(1 0 0 / 10%)"}`,
+                boxShadow: algo === name ? `0 0 12px ${ALGO_COLOR[name]}40` : "none",
+              }}
             >
               {name}
             </button>
@@ -86,80 +105,111 @@ function PathfindingPage() {
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-3">
-        {(["wall", "erase", "start", "end"] as Tool[]).map((t) => (
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl p-3" style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+        <span className="text-[10px] font-medium uppercase tracking-wider mr-1" style={{ color: "oklch(0.45 0.04 255)" }}>Tool:</span>
+        {toolConfig.map((t) => (
           <button
-            key={t}
-            onClick={() => setTool(t)}
-            className={`px-3 py-1.5 rounded-md text-sm border capitalize transition-colors ${
-              tool === t
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background border-border hover:bg-muted"
-            }`}
+            key={t.id}
+            onClick={() => setTool(t.id)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={{
+              background: tool === t.id ? `${t.color}20` : "oklch(1 0 0 / 4%)",
+              color: tool === t.id ? t.color : "oklch(0.55 0.04 255)",
+              border: `1px solid ${tool === t.id ? `${t.color}40` : "oklch(1 0 0 / 8%)"}`,
+            }}
           >
-            {t}
+            {t.label}
           </button>
         ))}
         <div className="ml-auto flex gap-2">
           <button
             onClick={() => setGrid(randomWalls(emptyGrid()))}
-            className="px-3 py-1.5 rounded-md text-sm border border-border bg-background hover:bg-muted"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={{ background: "oklch(1 0 0 / 5%)", color: "oklch(0.60 0.04 255)", border: "1px solid oklch(1 0 0 / 8%)" }}
           >
-            Random walls
+            Random Walls
           </button>
           <button
             onClick={() => setGrid(emptyGrid())}
-            className="px-3 py-1.5 rounded-md text-sm border border-border bg-background hover:bg-muted"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={{ background: "oklch(1 0 0 / 5%)", color: "oklch(0.60 0.04 255)", border: "1px solid oklch(1 0 0 / 8%)" }}
           >
             Clear
           </button>
         </div>
       </div>
 
+      {/* Grid */}
       <div
-        className="rounded-xl border border-border bg-card p-2 overflow-x-auto select-none"
+        className="rounded-2xl overflow-hidden"
+        style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
         onMouseLeave={() => setDrag(false)}
         onMouseUp={() => setDrag(false)}
       >
-        <div
-          className="grid gap-[2px]"
-          style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`, minWidth: COLS * 18 }}
-        >
-          {grid.map((row, r) =>
-            row.map((v, c) => {
-              const key = k(r, c);
-              const isStart = start.r === r && start.c === c;
-              const isEnd = end.r === r && end.c === c;
-              const isWall = v === 1;
-              const inPath = path.has(key);
-              const isCur = cur === key;
-              const isFront = frontier.has(key);
-              const isVisited = visited.has(key);
-              let bg = "oklch(0.985 0 0)";
-              if (isVisited) bg = "oklch(0.92 0.05 255)";
-              if (isFront) bg = "oklch(0.85 0.08 200)";
-              if (inPath) bg = "var(--warn)";
-              if (isCur) bg = "var(--primary)";
-              if (isWall) bg = "oklch(0.25 0.02 256)";
-              if (isStart) bg = "var(--accent)";
-              if (isEnd) bg = "var(--danger)";
-              return (
-                <motion.div
-                  key={key}
-                  initial={false}
-                  animate={{ backgroundColor: bg, scale: isCur ? 1.08 : 1 }}
-                  transition={{ duration: 0.15 }}
-                  onMouseDown={() => {
-                    setDrag(true);
-                    apply(r, c);
-                  }}
-                  onMouseEnter={() => drag && apply(r, c)}
-                  className="aspect-square rounded-[3px] cursor-pointer border border-border/40"
-                />
-              );
-            }),
-          )}
+        <div className="p-2 overflow-x-auto">
+          <div
+            className="grid gap-[2px]"
+            style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`, minWidth: COLS * 18 }}
+          >
+            {grid.map((row, r) =>
+              row.map((v, c) => {
+                const key = k(r, c);
+                const isStart = start.r === r && start.c === c;
+                const isEnd = end.r === r && end.c === c;
+                const isWall = v === 1;
+                const inPath = path.has(key);
+                const isCur = cur === key;
+                const isFront = frontier.has(key);
+                const isVisited = visited.has(key);
+
+                let bg = "oklch(1 0 0 / 4%)";
+                if (isVisited) bg = "oklch(0.72 0.19 255 / 18%)";
+                if (isFront) bg = "oklch(0.72 0.19 255 / 35%)";
+                if (inPath) bg = "oklch(0.82 0.18 85 / 70%)";
+                if (isCur) bg = accentColor;
+                if (isWall) bg = "oklch(1 0 0 / 15%)";
+                if (isStart) bg = "oklch(0.75 0.18 162)";
+                if (isEnd) bg = "oklch(0.68 0.22 22)";
+
+                return (
+                  <motion.div
+                    key={key}
+                    initial={false}
+                    animate={{
+                      backgroundColor: bg,
+                      scale: isCur ? 1.1 : 1,
+                      borderRadius: isStart || isEnd ? "4px" : "2px",
+                    }}
+                    transition={{ duration: 0.12 }}
+                    onMouseDown={() => { setDrag(true); apply(r, c); }}
+                    onMouseEnter={() => drag && apply(r, c)}
+                    className="aspect-square cursor-pointer"
+                    style={{ boxShadow: isCur ? `0 0 6px ${accentColor}80` : inPath ? "0 0 4px oklch(0.82 0.18 85 / 40%)" : "none" }}
+                  />
+                );
+              }),
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 text-[11px]" style={{ color: "oklch(0.50 0.04 255)" }}>
+        {[
+          { color: "oklch(0.75 0.18 162)", label: "Start" },
+          { color: "oklch(0.68 0.22 22)", label: "End" },
+          { color: "oklch(1 0 0 / 15%)", label: "Wall" },
+          { color: "oklch(0.72 0.19 255 / 40%)", label: "Visited" },
+          { color: "oklch(0.72 0.19 255 / 60%)", label: "Frontier" },
+          { color: "oklch(0.82 0.18 85 / 70%)", label: "Path" },
+          { color: accentColor, label: "Current" },
+        ].map((l) => (
+          <span key={l.label} className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: l.color, border: "1px solid oklch(1 0 0 / 10%)" }} />
+            {l.label}
+          </span>
+        ))}
       </div>
 
       <Controls
@@ -174,24 +224,6 @@ function PathfindingPage() {
         index={index}
         total={total}
       />
-
-      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <Legend color="var(--accent)" label="Start" />
-        <Legend color="var(--danger)" label="End" />
-        <Legend color="oklch(0.25 0.02 256)" label="Wall" />
-        <Legend color="oklch(0.92 0.05 255)" label="Visited" />
-        <Legend color="oklch(0.85 0.08 200)" label="Frontier" />
-        <Legend color="var(--warn)" label="Path" />
-      </div>
     </div>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="h-3 w-3 rounded-sm border border-border" style={{ background: color }} />
-      {label}
-    </span>
   );
 }
