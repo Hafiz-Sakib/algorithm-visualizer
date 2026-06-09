@@ -1,19 +1,254 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
+import * as THREE from "three";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "AlgoViz — Interactive Algorithm Visualizer with C++ Source" },
-      { name: "description", content: "Visualize 40+ classic algorithms with step-by-step animations and synced C++ STL source code. Sorting, searching, graphs, DP and more." },
-      { property: "og:title", content: "AlgoViz — Interactive Algorithm Visualizer" },
-      { property: "og:description", content: "Watch algorithms come to life with smooth animations and line-by-line C++ source." },
-    ],
-  }),
-  component: Index,
-});
+export const Route = createFileRoute("/")(
+  {
+    head: () => ({
+      meta: [
+        { title: "AlgoViz — Interactive Algorithm Visualizer with C++ Source" },
+        { name: "description", content: "Visualize 40+ classic algorithms with step-by-step animations and synced C++ STL source code. Sorting, searching, graphs, DP and more." },
+        { property: "og:title", content: "AlgoViz — Interactive Algorithm Visualizer" },
+        { property: "og:description", content: "Watch algorithms come to life with smooth animations and line-by-line C++ source." },
+      ],
+    }),
+    component: Index,
+  }
+);
 
+// ─── Three.js animated scene ──────────────────────────────────────────────────
+function ThreeScene() {
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = mountRef.current;
+    if (!el) return;
+
+    const W = el.clientWidth;
+    const H = el.clientHeight;
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 100);
+    camera.position.set(0, 0, 7);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(W, H);
+    renderer.setClearColor(0x000000, 0);
+    el.appendChild(renderer.domElement);
+
+    // ── 1. Floating node graph ────────────────────────────────────────────
+    const nodeCount = 18;
+    const nodeMeshes: THREE.Mesh[] = [];
+    const nodePositions: THREE.Vector3[] = [];
+    const nodeVelocities: THREE.Vector3[] = [];
+
+    const nodeGeo = new THREE.SphereGeometry(0.08, 16, 16);
+    const colors = [
+      new THREE.Color("oklch(0.72 0.19 255)"),
+      new THREE.Color("oklch(0.75 0.18 162)"),
+      new THREE.Color("oklch(0.82 0.18 85)"),
+      new THREE.Color("oklch(0.68 0.22 22)"),
+    ];
+
+    for (let i = 0; i < nodeCount; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: colors[i % colors.length],
+        transparent: true,
+        opacity: 0.85,
+      });
+      const mesh = new THREE.Mesh(nodeGeo, mat);
+      const pos = new THREE.Vector3(
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 4,
+        (Math.random() - 0.5) * 2
+      );
+      mesh.position.copy(pos);
+      nodePositions.push(pos);
+      const vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.008,
+        (Math.random() - 0.5) * 0.008,
+        (Math.random() - 0.5) * 0.003
+      );
+      nodeVelocities.push(vel);
+      nodeMeshes.push(mesh);
+      scene.add(mesh);
+    }
+
+    // ── 2. Edges between nearby nodes ────────────────────────────────────
+    const edgeLines: THREE.Line[] = [];
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: new THREE.Color("oklch(0.72 0.19 255)"),
+      transparent: true,
+      opacity: 0.18,
+    });
+
+    function rebuildEdges() {
+      edgeLines.forEach((l) => scene.remove(l));
+      edgeLines.length = 0;
+      const threshold = 2.8;
+      for (let i = 0; i < nodeCount; i++) {
+        for (let j = i + 1; j < nodeCount; j++) {
+          if (nodePositions[i].distanceTo(nodePositions[j]) < threshold) {
+            const geo = new THREE.BufferGeometry().setFromPoints([
+              nodePositions[i].clone(),
+              nodePositions[j].clone(),
+            ]);
+            const line = new THREE.Line(geo, edgeMat);
+            edgeLines.push(line);
+            scene.add(line);
+          }
+        }
+      }
+    }
+    rebuildEdges();
+
+    // ── 3. Sorting bars in the back plane ────────────────────────────────
+    const barCount = 12;
+    const barHeights = Array.from({ length: barCount }, (_, i) =>
+      0.3 + ((i * 7 + 3) % barCount) * 0.2
+    );
+    const barMeshes: THREE.Mesh[] = [];
+    const barTargets: number[] = [...barHeights];
+
+    for (let i = 0; i < barCount; i++) {
+      const h = barHeights[i];
+      const geo = new THREE.BoxGeometry(0.3, h, 0.15);
+      const frac = i / (barCount - 1);
+      const c = new THREE.Color();
+      c.setHSL(0.58 + frac * 0.25, 0.8, 0.55);
+      const mat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.28 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(-2.2 + i * 0.4, h / 2 - 1.8, -1.5);
+      barMeshes.push(mesh);
+      scene.add(mesh);
+    }
+
+    // ── 4. Pathfinding grid dots ──────────────────────────────────────────
+    const dotGeo = new THREE.SphereGeometry(0.04, 8, 8);
+    const dotMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color("oklch(0.75 0.18 162)"),
+      transparent: true,
+      opacity: 0.22,
+    });
+    for (let gx = -3; gx <= 3; gx++) {
+      for (let gy = -1; gy <= 1; gy++) {
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        dot.position.set(gx * 0.7, gy * 0.7 - 0.3, -3);
+        scene.add(dot);
+      }
+    }
+
+    // ── Animation loop ────────────────────────────────────────────────────
+    let frame = 0;
+    let animId: number;
+    let edgeRebuildCounter = 0;
+
+    // Sort animation state
+    let sortStep = 0;
+    let sortTimer = 0;
+    const sortedTargets = [...barTargets].sort((a, b) => a - b);
+    let currentTargets = [...barTargets];
+    let sortPhase = 0; // 0 = shuffle, 1 = sort
+
+    function animate() {
+      animId = requestAnimationFrame(animate);
+      frame++;
+      edgeRebuildCounter++;
+
+      // Move nodes
+      for (let i = 0; i < nodeCount; i++) {
+        nodePositions[i].add(nodeVelocities[i]);
+        // Bounce off soft bounding box
+        if (Math.abs(nodePositions[i].x) > 4.2) nodeVelocities[i].x *= -1;
+        if (Math.abs(nodePositions[i].y) > 2.2) nodeVelocities[i].y *= -1;
+        if (Math.abs(nodePositions[i].z) > 1.2) nodeVelocities[i].z *= -1;
+        nodeMeshes[i].position.copy(nodePositions[i]);
+        // Pulse opacity
+        const mat = nodeMeshes[i].material as THREE.MeshBasicMaterial;
+        mat.opacity = 0.5 + 0.35 * Math.sin(frame * 0.025 + i * 0.7);
+      }
+
+      // Rebuild edges every 8 frames
+      if (edgeRebuildCounter >= 8) {
+        rebuildEdges();
+        edgeRebuildCounter = 0;
+      }
+
+      // Animate bars (bubble sort steps, then shuffle)
+      sortTimer++;
+      if (sortTimer > 60) {
+        sortTimer = 0;
+        if (sortPhase === 0) {
+          // bubble sort one step
+          let swapped = false;
+          for (let i = 0; i < currentTargets.length - 1 - sortStep; i++) {
+            if (currentTargets[i] > currentTargets[i + 1]) {
+              [currentTargets[i], currentTargets[i + 1]] = [currentTargets[i + 1], currentTargets[i]];
+              swapped = true;
+              break;
+            }
+          }
+          if (!swapped) {
+            sortStep++;
+            if (sortStep >= currentTargets.length) {
+              sortPhase = 1;
+              sortStep = 0;
+              setTimeout(() => {
+                // shuffle
+                for (let i = currentTargets.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [currentTargets[i], currentTargets[j]] = [currentTargets[j], currentTargets[i]];
+                }
+                sortPhase = 0;
+              }, 2000);
+            }
+          }
+        }
+        // lerp bars to targets
+        for (let i = 0; i < barCount; i++) {
+          const target = currentTargets[i];
+          barMeshes[i].scale.y = THREE.MathUtils.lerp(barMeshes[i].scale.y, target / barHeights[i], 0.15);
+          barMeshes[i].position.y =
+            (barMeshes[i].scale.y * barHeights[i]) / 2 - 1.8;
+        }
+      }
+
+      // Gentle camera float
+      camera.position.x = Math.sin(frame * 0.004) * 0.4;
+      camera.position.y = Math.cos(frame * 0.003) * 0.2;
+      camera.lookAt(0, 0, 0);
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Resize handler
+    const onResize = () => {
+      if (!el) return;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", onResize);
+      renderer.dispose();
+      el.removeChild(renderer.domElement);
+    };
+  }, []);
+
+  return <div ref={mountRef} style={{ width: "100%", height: "100%" }} />;
+}
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
 const cards = [
   { to: "/sorting",     title: "Sorting",             desc: "Bubble, Selection, Insertion, Merge, Quick, Heap and 7 more",  icon: "⟨⟩", accent: "oklch(0.72 0.19 255)", glow: "oklch(0.72 0.19 255 / 15%)", tag: "13 algorithms" },
   { to: "/searching",   title: "Searching",           desc: "Linear, Binary, Jump, Exponential, Ternary, Interpolation",      icon: "⌕", accent: "oklch(0.75 0.18 162)", glow: "oklch(0.75 0.18 162 / 15%)", tag: "6 algorithms" },
@@ -73,7 +308,7 @@ const topics = [
   "Inorder","Preorder","Postorder","Level-order",
 ];
 
-// ─────────── Motion variants ───────────
+// ─── Motion variants ──────────────────────────────────────────────────────────
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 28 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const } },
@@ -87,6 +322,7 @@ const popIn: Variants = {
   show:   { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 260, damping: 18 } },
 };
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 function Index() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
@@ -95,13 +331,13 @@ function Index() {
 
   return (
     <div className="space-y-16 sm:space-y-24 py-4 sm:py-8 overflow-hidden">
-      {/* ───────── Hero with parallax ───────── */}
+      {/* ───────── Hero ───────── */}
       <motion.section
         ref={heroRef}
         style={{ y: heroY, opacity: heroOpacity }}
         className="text-center space-y-5 relative"
       >
-        {/* Animated ambient orbs */}
+        {/* Ambient orbs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
           <motion.div
             animate={{ y: [0, 24, 0], x: [0, 14, 0] }}
@@ -174,36 +410,40 @@ function Index() {
           </Link>
         </motion.div>
 
-        {/* Animated mini "bar chart" demo */}
+        {/* ── Three.js hero demo ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.6 }}
-          className="mx-auto mt-10 max-w-md rounded-2xl p-4"
-          style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
+          className="mx-auto mt-10 max-w-2xl rounded-2xl overflow-hidden relative"
+          style={{
+            background: "oklch(0.08 0.02 265)",
+            border: "1px solid oklch(1 0 0 / 10%)",
+            height: "260px",
+          }}
         >
-          <div className="flex items-end justify-center gap-1.5 h-20">
-            {[40, 70, 25, 90, 55, 35, 80, 60, 45, 75].map((h, i) => (
-              <motion.div
-                key={i}
-                initial={{ height: 0 }}
-                animate={{ height: [`${h}%`, `${(h + 20) % 100}%`, `${h}%`] }}
-                transition={{
-                  duration: 2.4,
-                  repeat: Infinity,
-                  delay: i * 0.12,
-                  ease: "easeInOut",
-                }}
-                className="w-3 rounded-t"
-                style={{
-                  background: `oklch(${0.65 + (i % 3) * 0.05} 0.19 ${255 - i * 12})`,
-                }}
-              />
+          {/* Corner glow accents */}
+          <div className="absolute top-0 left-0 w-24 h-24 rounded-full blur-2xl opacity-30 pointer-events-none"
+            style={{ background: "oklch(0.72 0.19 255)", transform: "translate(-30%, -30%)" }} />
+          <div className="absolute bottom-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 pointer-events-none"
+            style={{ background: "oklch(0.75 0.18 162)", transform: "translate(30%, 30%)" }} />
+
+          <ThreeScene />
+
+          {/* Label row */}
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-4 pointer-events-none">
+            {[
+              { dot: "oklch(0.72 0.19 255)", label: "Graph nodes" },
+              { dot: "oklch(0.75 0.18 162)", label: "Grid paths" },
+              { dot: "oklch(0.82 0.18 85)",  label: "Sort bars" },
+            ].map(({ dot, label }) => (
+              <span key={label} className="flex items-center gap-1 text-[10px] font-mono"
+                style={{ color: "oklch(0.50 0.04 255)" }}>
+                <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
+                {label}
+              </span>
             ))}
           </div>
-          <p className="text-[10px] font-mono text-center mt-2" style={{ color: "oklch(0.45 0.04 255)" }}>
-            ↑ this is roughly what sorting feels like
-          </p>
         </motion.div>
       </motion.section>
 
@@ -298,7 +538,7 @@ function Index() {
             <motion.div
               key={f.title}
               variants={fadeUp}
-              whileHover={{ scale: 1.03, borderColor: "oklch(0.72 0.19 255 / 30%)" as any }}
+              whileHover={{ scale: 1.03 }}
               className="rounded-2xl p-5 cursor-default"
               style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
             >
@@ -314,7 +554,7 @@ function Index() {
         </div>
       </motion.section>
 
-      {/* ───────── How it works (with animated connecting line) ───────── */}
+      {/* ───────── How it works ───────── */}
       <motion.section
         variants={staggerParent}
         initial="hidden"
@@ -350,7 +590,7 @@ function Index() {
         </div>
       </motion.section>
 
-      {/* ───────── Topics marquee (auto-scrolling tags) ───────── */}
+      {/* ───────── Topics marquee ───────── */}
       <motion.section
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
@@ -417,7 +657,7 @@ function Index() {
               <span
                 className="absolute top-3 right-4 text-5xl leading-none opacity-15 font-serif"
                 style={{ color: "oklch(0.72 0.19 255)" }}
-              >“</span>
+              >"</span>
               <p className="text-sm leading-relaxed" style={{ color: "oklch(0.78 0.02 255)" }}>{t.quote}</p>
               <div className="mt-4 flex items-center gap-3">
                 <div
@@ -455,7 +695,8 @@ function Index() {
             { name: "TypeScript",     c: "oklch(0.72 0.19 255)" },
             { name: "Tailwind CSS",   c: "oklch(0.75 0.18 200)" },
             { name: "Framer Motion",  c: "oklch(0.82 0.18 85)"  },
-            { name: "Vite",           c: "oklch(0.82 0.22 60)"  },
+            { name: "Three.js",       c: "oklch(0.82 0.22 60)"  },
+            { name: "Vite",           c: "oklch(0.72 0.22 20)"  },
             { name: "C++ STL",        c: "oklch(0.72 0.22 180)" },
           ].map((tech) => (
             <motion.span
@@ -492,7 +733,6 @@ function Index() {
             <motion.details
               key={f.q}
               variants={fadeUp}
-              whileHover={{ borderColor: "oklch(0.72 0.19 255 / 30%)" as any }}
               className="rounded-2xl p-4 group"
               style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
             >
@@ -506,7 +746,7 @@ function Index() {
         </div>
       </motion.section>
 
-      {/* ───────── Final CTA ───────── */}
+      {/* ───────── CTA ───────── */}
       <motion.section
         initial={{ opacity: 0, scale: 0.96 }}
         whileInView={{ opacity: 1, scale: 1 }}
@@ -547,7 +787,7 @@ function Index() {
         className="text-center text-xs pt-4 pb-2"
         style={{ color: "oklch(0.45 0.04 255)" }}
       >
-        Built with TanStack Start, React, Tailwind & a lot of{" "}
+        Built with TanStack Start, React, Three.js & a lot of{" "}
         <motion.span
           animate={{ scale: [1, 1.25, 1] }}
           transition={{ duration: 1.2, repeat: Infinity }}
