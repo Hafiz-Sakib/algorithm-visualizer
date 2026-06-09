@@ -9,38 +9,56 @@ interface PythonCodePanelProps {
   activeLines?: number[];
 }
 
-// Tiny Python-only syntax highlighter (regex-based; safe for short snippets).
-const PY_KEYWORDS = [
-  "def","return","if","else","elif","for","while","in","not","and","or",
-  "import","from","as","True","False","None","class","lambda","pass",
-  "break","continue","try","except","finally","raise","with","yield","global","nonlocal",
+// Minimal C++ syntax highlighter (regex based; safe for short snippets).
+const CPP_KEYWORDS = [
+  "int","long","short","char","bool","float","double","void","unsigned","signed",
+  "auto","const","static","struct","class","public","private","protected","template",
+  "typename","return","if","else","for","while","do","switch","case","break","continue",
+  "true","false","nullptr","new","delete","using","namespace","typedef","sizeof",
+  "include","define","ifndef","endif","this","virtual","override","inline","explicit",
 ];
-const PY_BUILTINS = [
-  "range","len","min","max","int","str","print","set","list","dict","tuple",
-  "sum","abs","map","filter","enumerate","reversed","sorted","zip","any","all",
-  "ord","chr","pow","float","bool",
+const CPP_TYPES = [
+  "vector","string","map","unordered_map","set","unordered_set","queue","stack",
+  "deque","pair","tuple","priority_queue","list","array","size_t","ptrdiff_t",
+  "uint8_t","uint16_t","uint32_t","uint64_t","int8_t","int16_t","int32_t","int64_t",
+];
+const CPP_FUNCS = [
+  "sort","swap","reverse","min","max","abs","find","push_back","pop_back","insert",
+  "erase","begin","end","rbegin","rend","empty","size","clear","front","back","push",
+  "pop","top","make_heap","sort_heap","lower_bound","upper_bound","min_element",
+  "max_element","accumulate","count","fill","memset","memcpy","to_string","printf",
+  "cout","cin","endl",
 ];
 
-function highlightPython(code: string): string {
+function highlightCpp(code: string): string {
   let out = code
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  out = out.replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g, '<span class="tok-str">$1</span>');
-  out = out.replace(/(?<!class=")(["'])(?:(?!\1)[^\\\n]|\\.)*?\1/g, '<span class="tok-str">$&</span>');
-  out = out.replace(/(#[^\n]*)/g, '<span class="tok-comment">$1</span>');
-  out = out.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
+  // strings (single line)
+  out = out.replace(/(["'])(?:(?!\1)[^\\\n]|\\.)*?\1/g, '<span class="tok-str">$&</span>');
+  // line/block comments
+  out = out.replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, '<span class="tok-comment">$1</span>');
+  // preprocessor lines
+  out = out.replace(/(^|\n)(#[^\n]*)/g, '$1<span class="tok-pre">$2</span>');
+  // numbers
+  out = out.replace(/\b(\d+(?:\.\d+)?[fLuU]*)\b/g, '<span class="tok-num">$1</span>');
+  // keywords
   out = out.replace(
-    new RegExp(`\\b(${PY_KEYWORDS.join("|")})\\b`, "g"),
+    new RegExp(`\\b(${CPP_KEYWORDS.join("|")})\\b`, "g"),
     '<span class="tok-kw">$1</span>',
   );
+  // types
   out = out.replace(
-    new RegExp(`\\b(${PY_BUILTINS.join("|")})\\b(?=\\s*\\()`, "g"),
+    new RegExp(`\\b(${CPP_TYPES.join("|")})\\b`, "g"),
+    '<span class="tok-type">$1</span>',
+  );
+  // builtin functions before "("
+  out = out.replace(
+    new RegExp(`\\b(${CPP_FUNCS.join("|")})\\b(?=\\s*[(.])`, "g"),
     '<span class="tok-builtin">$1</span>',
   );
-  out = out.replace(/\b(def)\s+([A-Za-z_]\w*)/g, '<span class="tok-kw">def</span> <span class="tok-fn">$2</span>');
-
   return out;
 }
 
@@ -55,7 +73,7 @@ export function PythonCodePanel({
 
   const lines = useMemo(() => {
     if (!snippet) return [] as string[];
-    return snippet.code.split("\n").map((l) => highlightPython(l) || "&nbsp;");
+    return snippet.code.split("\n").map((l) => highlightCpp(l) || "&nbsp;");
   }, [snippet]);
 
   const activeSet = useMemo(() => new Set(activeLines), [activeLines]);
@@ -70,7 +88,7 @@ export function PythonCodePanel({
           color: "oklch(0.55 0.04 255)",
         }}
       >
-        Python implementation coming soon for <strong>{algo}</strong>.
+        C++ implementation coming soon for <strong>{algo}</strong>.
       </div>
     );
   }
@@ -84,12 +102,12 @@ export function PythonCodePanel({
   };
 
   const download = () => {
-    const blob = new Blob([snippet.code], { type: "text/x-python" });
+    const blob = new Blob([snippet.code], { type: "text/x-c++src" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const safeAlgo = algo.replace(/[^a-zA-Z0-9_-]/g, "_");
     a.href = url;
-    a.download = `${section}_${safeAlgo}.py`;
+    a.download = `${section}_${safeAlgo}.cpp`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -105,12 +123,13 @@ export function PythonCodePanel({
       }}
     >
       <style>{`
-        .py-code .tok-kw      { color: oklch(0.72 0.19 255); font-weight: 600; }
-        .py-code .tok-fn      { color: oklch(0.82 0.18 85); }
-        .py-code .tok-builtin { color: oklch(0.78 0.16 200); }
-        .py-code .tok-str     { color: oklch(0.75 0.18 162); }
-        .py-code .tok-num     { color: oklch(0.75 0.18 310); }
-        .py-code .tok-comment { color: oklch(0.45 0.04 255); font-style: italic; }
+        .cpp-code .tok-kw      { color: oklch(0.72 0.19 255); font-weight: 600; }
+        .cpp-code .tok-type    { color: oklch(0.78 0.16 200); font-weight: 500; }
+        .cpp-code .tok-builtin { color: oklch(0.82 0.18 85); }
+        .cpp-code .tok-pre     { color: oklch(0.75 0.18 310); font-weight: 600; }
+        .cpp-code .tok-str     { color: oklch(0.75 0.18 162); }
+        .cpp-code .tok-num     { color: oklch(0.75 0.18 310); }
+        .cpp-code .tok-comment { color: oklch(0.45 0.04 255); font-style: italic; }
       `}</style>
 
       {/* Header */}
@@ -123,7 +142,7 @@ export function PythonCodePanel({
             className="text-[10px] font-mono uppercase tracking-widest"
             style={{ color: "oklch(0.40 0.04 255)" }}
           >
-            python · {algo}
+            c++ · {algo}
           </span>
           <span
             className="text-[10px] font-mono px-2 py-0.5 rounded-full"
@@ -157,7 +176,7 @@ export function PythonCodePanel({
               color: "oklch(0.55 0.04 255)",
               border: "1px solid oklch(1 0 0 / 10%)",
             }}
-            title="Download .py file"
+            title="Download .cpp file"
           >
             ⬇ Download
           </button>
@@ -175,11 +194,10 @@ export function PythonCodePanel({
         </div>
       </div>
 
-      {/* Code body — no max-height, no internal scrollbar on desktop.
-          On mobile, narrow lines may overflow horizontally; allow x-scroll only. */}
+      {/* Code body */}
       <div className="overflow-x-auto">
         <pre
-          className="py-code text-[12px] font-mono leading-relaxed py-3"
+          className="cpp-code text-[12px] font-mono leading-relaxed py-3"
           style={{
             color: "oklch(0.82 0.02 255)",
             whiteSpace: "pre",

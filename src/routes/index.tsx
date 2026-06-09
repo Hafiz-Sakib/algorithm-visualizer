@@ -5,10 +5,10 @@ import { useRef } from "react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AlgoViz — Interactive Algorithm Visualizer with Python Code" },
-      { name: "description", content: "Visualize 40+ classic algorithms with step-by-step animations and synced Python code execution. Sorting, searching, graphs, DP and more." },
+      { title: "AlgoViz — Interactive Algorithm Visualizer with C++ Source" },
+      { name: "description", content: "Visualize 40+ classic algorithms with step-by-step animations and synced C++ STL source code. Sorting, searching, graphs, DP and more." },
       { property: "og:title", content: "AlgoViz — Interactive Algorithm Visualizer" },
-      { property: "og:description", content: "Watch algorithms come to life with smooth animations and line-by-line Python code." },
+      { property: "og:description", content: "Watch algorithms come to life with smooth animations and line-by-line C++ source." },
     ],
   }),
   component: Index,
@@ -22,19 +22,22 @@ const cards = [
   { to: "/graph",       title: "Graph Algorithms",    desc: "DFS, BFS, Topological Sort, Dijkstra, Prim MST",                  icon: "⬡", accent: "oklch(0.75 0.18 310)", glow: "oklch(0.75 0.18 310 / 15%)", tag: "6 algorithms" },
   { to: "/dp",          title: "Dynamic Programming", desc: "Fibonacci, LCS, Knapsack, Edit Distance, Coin Change, LIS",       icon: "⊞", accent: "oklch(0.72 0.22 180)", glow: "oklch(0.72 0.22 180 / 15%)", tag: "6 algorithms" },
   { to: "/strings",     title: "String Algorithms",   desc: "Naive, KMP, Rabin-Karp, Z-Algorithm",                             icon: "Σ", accent: "oklch(0.82 0.22 60)",  glow: "oklch(0.82 0.22 60 / 15%)",  tag: "4 algorithms" },
+  { to: "/nqueens",     title: "N-Queens",            desc: "Classic backtracking solver on an interactive board",             icon: "♛", accent: "oklch(0.82 0.18 85)",  glow: "oklch(0.82 0.18 85 / 15%)",  tag: "Backtracking" },
+  { to: "/knights",     title: "Knight's Tour",       desc: "Warnsdorff's heuristic visits every chessboard square",            icon: "♞", accent: "oklch(0.72 0.22 180)", glow: "oklch(0.72 0.22 180 / 15%)", tag: "Chess" },
+  { to: "/hanoi",       title: "Tower of Hanoi",      desc: "Recursive disk moves with an animated 3-peg solution",            icon: "⌬", accent: "oklch(0.75 0.18 310)", glow: "oklch(0.75 0.18 310 / 15%)", tag: "Recursion" },
 ] as const;
 
 const stats = [
-  { value: "42+",   label: "Algorithms" },
-  { value: "7",     label: "Categories" },
+  { value: "45+",   label: "Algorithms" },
+  { value: "10",    label: "Categories" },
   { value: "60fps", label: "Animations" },
-  { value: "🐍",    label: "Python Code" },
+  { value: "⌘",    label: "C++ Code" },
 ];
 
 const features = [
   { icon: "▶",  title: "Step-by-step playback",     desc: "Play, pause, step forward or back. Adjust speed at any time to slow down the tricky parts." },
-  { icon: "🐍", title: "Live Python code",          desc: "Each visualization is paired with clean, well-commented Python you can read, copy, or download." },
-  { icon: "✦",  title: "Synced line highlighting",  desc: "As the visualization runs, the matching line in the Python source lights up so the algorithm makes sense." },
+  { icon: "⌘", title: "Live C++ STL code",          desc: "Each visualization is paired with clean, well-commented C++ using STL you can read, copy, or download." },
+  { icon: "✦",  title: "Synced line highlighting",  desc: "As the visualization runs, the matching line in the C++ source lights up so the algorithm makes sense." },
   { icon: "⌗",  title: "Custom inputs",             desc: "Type your own arrays, draw obstacles on pathfinding grids, and pick from sample graphs." },
   { icon: "⏱",  title: "Complexity badges",         desc: "Time and space complexity are shown next to every algorithm so trade-offs are obvious." },
   { icon: "📱", title: "Fully responsive",          desc: "Looks and feels great on phone, tablet, laptop, monitor — code panel adapts to your screen." },
@@ -44,20 +47,20 @@ const howSteps = [
   { n: "01", title: "Pick a category",   desc: "Choose Sorting, Searching, Graphs, DP and more from the sidebar." },
   { n: "02", title: "Pick an algorithm", desc: "Each category ships with multiple classic algorithms to compare side-by-side." },
   { n: "03", title: "Press play",        desc: "Watch it run. Step backwards, adjust speed, or jump frame-by-frame." },
-  { n: "04", title: "Read the code",     desc: "The Python panel highlights the line that is currently executing." },
+  { n: "04", title: "Read the code",     desc: "The C++ panel highlights the line that is currently executing." },
 ];
 
 const faqs = [
   { q: "Is this free?",                       a: "Yes — completely free and open in your browser. No sign-up required." },
-  { q: "Can I use the Python code in my own projects?", a: "Absolutely. Use the Copy or Download button on any code panel. The snippets use only Python's standard library." },
-  { q: "Why Python and not JavaScript?",      a: "Python reads almost like pseudocode, which makes the algorithms easier to follow. The actual visualizer is built in TypeScript." },
+  { q: "Can I use the C++ code in my own projects?", a: "Absolutely. Use the Copy or Download button on any code panel. The snippets use only the C++ standard template library." },
+  { q: "Why C++ and not JavaScript?",      a: "C++ with STL is concise, fast, and what most CS courses and interviews use, which makes the algorithms easier to follow. The actual visualizer is built in TypeScript." },
   { q: "Does it work on mobile?",             a: "Yes. The layout stacks vertically on phones and tablets, and the visualization keeps its proportions." },
 ];
 
 const testimonials = [
   { name: "Anika R.",   role: "CS Student",          quote: "The line highlighting finally made Dijkstra click for me. I stopped memorizing and started understanding." },
   { name: "Marcus T.",  role: "Self-taught dev",     quote: "I keep AlgoViz open in a tab during interview prep. Watching Quick Sort partition is oddly satisfying." },
-  { name: "Priya S.",   role: "Bootcamp instructor", quote: "I use this in lectures. Students see the algorithm AND read the Python at the same time — game changer." },
+  { name: "Priya S.",   role: "Bootcamp instructor", quote: "I use this in lectures. Students see the algorithm AND read the C++ at the same time — game changer." },
   { name: "David K.",   role: "Software Engineer",   quote: "Best free algorithm visualizer I've found. The DP table animations alone are worth bookmarking." },
 ];
 
@@ -128,7 +131,7 @@ function Index() {
               className="inline-block h-1.5 w-1.5 rounded-full"
               style={{ background: "oklch(0.72 0.19 255)" }}
             />
-            Interactive Algorithm Learning · with live Python
+            Interactive Algorithm Learning · with live C++
           </span>
         </motion.div>
 
@@ -142,7 +145,7 @@ function Index() {
           See algorithms{" "}
           <span className="shimmer-text">think</span>.<br />
           <span className="text-2xl sm:text-3xl md:text-4xl" style={{ color: "oklch(0.65 0.04 255)" }}>
-            Read the Python <span style={{ color: "oklch(0.72 0.19 255)" }}>line-by-line</span>.
+            Read the C++ <span style={{ color: "oklch(0.72 0.19 255)" }}>line-by-line</span>.
           </span>
         </motion.h1>
 
@@ -151,7 +154,7 @@ function Index() {
           className="mx-auto max-w-xl text-sm sm:text-base"
           style={{ color: "oklch(0.60 0.04 255)" }}
         >
-          Step through 40+ classic algorithms in real-time. Every animation is paired with the matching Python implementation —
+          Step through 40+ classic algorithms in real-time. Every animation is paired with the matching C++ STL implementation —
           and the currently-executing line lights up as you watch.
         </motion.p>
 
@@ -237,7 +240,7 @@ function Index() {
       >
         <motion.header variants={fadeUp}>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Explore by category</h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Seven sections, dozens of algorithms — every one with a synced Python panel.</p>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Seven sections, dozens of algorithms — every one with a synced C++ panel.</p>
         </motion.header>
         <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (
@@ -453,7 +456,7 @@ function Index() {
             { name: "Tailwind CSS",   c: "oklch(0.75 0.18 200)" },
             { name: "Framer Motion",  c: "oklch(0.82 0.18 85)"  },
             { name: "Vite",           c: "oklch(0.82 0.22 60)"  },
-            { name: "Python 3",       c: "oklch(0.72 0.22 180)" },
+            { name: "C++ STL",        c: "oklch(0.72 0.22 180)" },
           ].map((tech) => (
             <motion.span
               key={tech.name}

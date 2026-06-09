@@ -14,6 +14,9 @@ import { Route as StringsRouteImport } from './routes/strings'
 import { Route as SortingRouteImport } from './routes/sorting'
 import { Route as SearchingRouteImport } from './routes/searching'
 import { Route as PathfindingRouteImport } from './routes/pathfinding'
+import { Route as NqueensRouteImport } from './routes/nqueens'
+import { Route as KnightsRouteImport } from './routes/knights'
+import { Route as HanoiRouteImport } from './routes/hanoi'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as DpRouteImport } from './routes/dp'
 import { Route as IndexRouteImport } from './routes/index'
@@ -43,6 +46,21 @@ const PathfindingRoute = PathfindingRouteImport.update({
   path: '/pathfinding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NqueensRoute = NqueensRouteImport.update({
+  id: '/nqueens',
+  path: '/nqueens',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnightsRoute = KnightsRouteImport.update({
+  id: '/knights',
+  path: '/knights',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HanoiRoute = HanoiRouteImport.update({
+  id: '/hanoi',
+  path: '/hanoi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GraphRoute = GraphRouteImport.update({
   id: '/graph',
   path: '/graph',
@@ -63,6 +81,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dp': typeof DpRoute
   '/graph': typeof GraphRoute
+  '/hanoi': typeof HanoiRoute
+  '/knights': typeof KnightsRoute
+  '/nqueens': typeof NqueensRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
   '/sorting': typeof SortingRoute
@@ -73,6 +94,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dp': typeof DpRoute
   '/graph': typeof GraphRoute
+  '/hanoi': typeof HanoiRoute
+  '/knights': typeof KnightsRoute
+  '/nqueens': typeof NqueensRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
   '/sorting': typeof SortingRoute
@@ -84,6 +108,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dp': typeof DpRoute
   '/graph': typeof GraphRoute
+  '/hanoi': typeof HanoiRoute
+  '/knights': typeof KnightsRoute
+  '/nqueens': typeof NqueensRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
   '/sorting': typeof SortingRoute
@@ -96,6 +123,9 @@ export interface FileRouteTypes {
     | '/'
     | '/dp'
     | '/graph'
+    | '/hanoi'
+    | '/knights'
+    | '/nqueens'
     | '/pathfinding'
     | '/searching'
     | '/sorting'
@@ -106,6 +136,9 @@ export interface FileRouteTypes {
     | '/'
     | '/dp'
     | '/graph'
+    | '/hanoi'
+    | '/knights'
+    | '/nqueens'
     | '/pathfinding'
     | '/searching'
     | '/sorting'
@@ -116,6 +149,9 @@ export interface FileRouteTypes {
     | '/'
     | '/dp'
     | '/graph'
+    | '/hanoi'
+    | '/knights'
+    | '/nqueens'
     | '/pathfinding'
     | '/searching'
     | '/sorting'
@@ -127,6 +163,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DpRoute: typeof DpRoute
   GraphRoute: typeof GraphRoute
+  HanoiRoute: typeof HanoiRoute
+  KnightsRoute: typeof KnightsRoute
+  NqueensRoute: typeof NqueensRoute
   PathfindingRoute: typeof PathfindingRoute
   SearchingRoute: typeof SearchingRoute
   SortingRoute: typeof SortingRoute
@@ -171,6 +210,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PathfindingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nqueens': {
+      id: '/nqueens'
+      path: '/nqueens'
+      fullPath: '/nqueens'
+      preLoaderRoute: typeof NqueensRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knights': {
+      id: '/knights'
+      path: '/knights'
+      fullPath: '/knights'
+      preLoaderRoute: typeof KnightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hanoi': {
+      id: '/hanoi'
+      path: '/hanoi'
+      fullPath: '/hanoi'
+      preLoaderRoute: typeof HanoiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/graph': {
       id: '/graph'
       path: '/graph'
@@ -199,6 +259,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DpRoute: DpRoute,
   GraphRoute: GraphRoute,
+  HanoiRoute: HanoiRoute,
+  KnightsRoute: KnightsRoute,
+  NqueensRoute: NqueensRoute,
   PathfindingRoute: PathfindingRoute,
   SearchingRoute: SearchingRoute,
   SortingRoute: SortingRoute,

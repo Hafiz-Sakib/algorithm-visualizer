@@ -9,6 +9,9 @@ const links = [
   { to: "/graph", label: "Graph", icon: "⬡", color: "oklch(0.75 0.18 310)" },
   { to: "/dp", label: "DP", icon: "⊞", color: "oklch(0.72 0.22 180)" },
   { to: "/strings", label: "Strings", icon: "Σ", color: "oklch(0.82 0.22 60)" },
+  { to: "/nqueens", label: "N-Queens", icon: "♛", color: "oklch(0.82 0.18 85)" },
+  { to: "/knights", label: "Knight's Tour", icon: "♞", color: "oklch(0.72 0.22 180)" },
+  { to: "/hanoi", label: "Hanoi", icon: "⌬", color: "oklch(0.75 0.18 310)" },
 ] as const;
 
 export function Nav() {
@@ -30,16 +33,16 @@ export function Nav() {
         </Link>
 
         {/* Desktop nav — scrollable on medium screens */}
-        <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto">
+        <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto max-w-[78%]">
           {links.map((l) => {
             const active = path === l.to;
             return (
               <Link key={l.to} to={l.to}
-                className="relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap"
+                className="relative px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap"
                 style={{ color: active ? "oklch(0.95 0.01 255)" : "oklch(0.58 0.04 255)", background: active ? "oklch(1 0 0 / 8%)" : "transparent" }}
                 onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "oklch(0.82 0.01 255)"; }}
                 onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "oklch(0.58 0.04 255)"; }}>
-                {active && <span className="absolute inset-x-3 bottom-0.5 h-[2px] rounded-full" style={{ background: l.color }} />}
+                {active && <span className="absolute inset-x-2.5 bottom-0.5 h-[2px] rounded-full" style={{ background: l.color }} />}
                 {l.label}
               </Link>
             );
@@ -56,7 +59,7 @@ export function Nav() {
       </div>
 
       {/* Mobile dropdown */}
-      <div className="md:hidden transition-all duration-300 ease-in-out" style={{ maxHeight: open ? "500px" : "0", opacity: open ? 1 : 0, overflow: "hidden" }}>
+      <div className="md:hidden transition-all duration-300 ease-in-out" style={{ maxHeight: open ? "700px" : "0", opacity: open ? 1 : 0, overflow: "hidden" }}>
         <div className="px-4 pb-4 pt-1 grid grid-cols-2 gap-1" style={{ borderTop: "1px solid oklch(1 0 0 / 6%)" }}>
           {links.map((l) => {
             const active = path === l.to;

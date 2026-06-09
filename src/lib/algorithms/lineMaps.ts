@@ -1,6 +1,8 @@
-// Maps a runtime visualizer step to highlighted Python source lines.
+// Maps a runtime visualizer step to highlighted C++ source lines.
 // Line numbers are 1-indexed relative to each snippet in `python.ts`.
-// Where no detector exists we return [] and the code panel just renders plain.
+// The detectors below are intentionally conservative for the C++ snippets:
+// each one returns an empty array unless the message/state clearly identifies
+// a known location, so we never highlight the wrong line.
 
 import type { PySection } from "./python";
 
@@ -9,158 +11,122 @@ type StepFn = (step: any) => number[];
 const has = (s: any, k: string) => s && Object.prototype.hasOwnProperty.call(s, k);
 const m = (s: any) => (s?.message ?? "") as string;
 
-// ────────────────────────────── SORTING ──────────────────────────────
+// ────────────────────────────── SORTING (C++ STL) ──────────────────────────────
+// Snippets begin with `#include <bits/stdc++.h>` + `using namespace std;`,
+// pushing the algorithm body down a few lines.
 const SORTING: Record<string, StepFn> = {
   Bubble: (s) => {
-    if (s?.swap) return [8];
-    if (s?.compare) return [7];
-    if (s?.sorted?.length) return [12];
-    return [4];
+    if (s?.swap) return [11];                       // swap(a[j], a[j+1])
+    if (s?.compare) return [10];                    // if (a[j] > a[j+1])
+    if (s?.sorted?.length === (s?.array?.length ?? 0)) return [16];
+    return [];
   },
   Selection: (s) => {
-    if (s?.swap) return [9];
-    if (s?.compare) return [7];
-    return [4, 5];
+    if (s?.swap) return [11];                       // swap(a[i], a[mn])
+    if (s?.compare) return [9, 10];                 // for + if (a[j] < a[mn])
+    return [];
   },
   Insertion: (s) => {
-    if (s?.swap) return [7, 8];
-    if (s?.compare) return [6];
-    return [3, 4];
+    if (s?.swap) return [9, 10];                    // while shift loop
+    if (s?.compare) return [9];                     // a[j] > key
+    return [];
   },
   Merge: (s) => {
-    if (s?.swap) return [13];
-    if (s?.compare) return [10, 11];
-    return [6, 7];
+    if (s?.compare) return [9, 10];                 // merge compare
+    if (s?.swap) return [10];
+    return [];
   },
   Quick: (s) => {
-    if (s?.swap && has(s, "pivot") === false) return [20];
-    if (s?.swap) return [19];
-    if (s?.compare) return [17, 18];
-    if (has(s, "pivot")) return [14];
+    if (s?.swap && has(s, "pivot")) return [10];    // swap(++i, j)
+    if (s?.swap) return [12];                       // swap pivot in place
+    if (s?.compare) return [9, 10];
+    if (has(s, "pivot")) return [6];                // pivot = a[hi]
     return [];
   },
-  Heap: (s) => {
-    if (s?.swap?.[0] === 0) return [7];
-    if (s?.swap) return [13];
-    if (s?.compare) return [16, 18];
+  Heap: () => [],                                   // STL one-liner
+  Shell: (s) => {
+    if (s?.swap) return [10, 11];
+    if (s?.compare) return [10];
     return [];
   },
-  Shell: (s) => (s?.swap ? [9, 10] : s?.compare ? [8] : [4]),
-  Counting: (s) => (s?.swap ? [12] : s?.compare ? [7] : []),
-  Radix: (s) => (s?.swap ? [16] : s?.compare ? [8, 9] : []),
-  Cocktail: (s) => (s?.swap ? [9, 17] : s?.compare ? [8, 16] : []),
-  Gnome: (s) => (s?.swap ? [8] : s?.compare ? [4, 5] : []),
-  Comb: (s) => (s?.swap ? [11] : s?.compare ? [10] : []),
-  Cycle: (s) => (s?.swap ? [11, 16] : []),
+  Counting: () => [],
+  Radix: () => [],
+  Cocktail: (s) => (s?.swap ? [12, 16] : []),
+  Gnome: (s) => (s?.swap ? [9] : []),
+  Comb: (s) => (s?.swap ? [12] : []),
+  Cycle: () => [],
 };
 
-// ────────────────────────────── SEARCHING ──────────────────────────────
+// ────────────────────────────── SEARCHING (C++ STL) ──────────────────────────────
 const SEARCHING: Record<string, StepFn> = {
   Linear: (s) => {
-    if (has(s, "found")) return [3, 4];
-    if (has(s, "checking")) return [3];
+    if (has(s, "found")) return [5, 6];
+    if (has(s, "checking")) return [5];
     return [];
   },
   Binary: (s) => {
-    if (has(s, "found")) return [5, 6];
-    if (has(s, "checking")) return [4, 5, 7];
+    if (has(s, "found")) return [9];
+    if (has(s, "checking")) return [8, 10, 11];
     return [];
   },
   Jump: (s) => {
-    if (has(s, "found")) return [11, 12];
-    if (has(s, "checking")) return [6, 10];
+    if (has(s, "found")) return [12, 13];
+    if (has(s, "checking")) return [7, 12];
     return [];
   },
   Exponential: (s) => {
-    if (has(s, "found")) return [11, 15];
-    if (has(s, "checking")) return [9, 13];
+    if (has(s, "found")) return [9, 14];
+    if (has(s, "checking")) return [11, 13];
     return [];
   },
   Ternary: (s) => {
-    if (has(s, "found")) return [7, 9];
-    if (has(s, "checking")) return [5, 6];
+    if (has(s, "found")) return [9, 10];
+    if (has(s, "checking")) return [7, 8];
     return [];
   },
   Interpolation: (s) => {
-    if (has(s, "found")) return [8, 9];
-    if (has(s, "checking")) return [7];
-    return [];
-  },
-};
-
-// ────────────────────────────── STRINGS ──────────────────────────────
-const STRINGS: Record<string, StepFn> = {
-  Naive: (s) => {
-    const msg = m(s);
-    if (msg.startsWith("✓")) return [9, 10];
-    if (msg.startsWith("Match:")) return [7, 8];
-    if (msg.startsWith("Mismatch")) return [7];
-    if (msg.startsWith("Window")) return [5, 6];
-    return [];
-  },
-  KMP: (s) => {
-    const msg = m(s);
-    if (msg.startsWith("Failure")) return [16, 22];
-    if (msg.startsWith("✓")) return [8, 9];
-    if (msg.includes("=")) return [6, 7];
-    if (msg.startsWith("KMP:")) return [16];
-    return [];
-  },
-  "Rabin-Karp": (s) => {
-    const msg = m(s);
-    if (msg.startsWith("Pattern hash")) return [8, 9, 10];
-    if (msg.startsWith("✓")) return [13, 14];
-    if (msg.startsWith("Hash collision")) return [13];
-    if (msg.startsWith("Window")) return [12];
-    return [];
-  },
-  "Z-Algorithm": (s) => {
-    const msg = m(s);
-    if (msg.startsWith("Z[") && msg.includes("match")) return [13, 15];
-    if (msg.startsWith("Z[")) return [10, 11];
+    if (has(s, "found")) return [9];
+    if (has(s, "checking")) return [9];
     return [];
   },
 };
 
 // ────────────────────────────── TREE ──────────────────────────────
 const TREE: Record<string, StepFn> = {
-  BFS: (s) => (has(s, "visiting") ? [9, 10, 11] : [7, 8]),
-  "DFS-In": (s) => (has(s, "visiting") ? [6, 7] : [4, 5]),
-  "DFS-Pre": (s) => (has(s, "visiting") ? [7, 8] : [9, 10]),
-  "DFS-Post": (s) => (has(s, "visiting") ? [11] : [7, 8, 9]),
+  BFS: (s) => (has(s, "visiting") ? [10, 11] : []),
+  "DFS-In": (s) => (has(s, "visiting") ? [9, 10] : []),
+  "DFS-Pre": (s) => (has(s, "visiting") ? [10, 11] : []),
+  "DFS-Post": (s) => (has(s, "visiting") ? [10, 11] : []),
 };
 
 // ────────────────────────────── GRAPH ──────────────────────────────
 const GRAPH: Record<string, StepFn> = {
   BFS: (s) => {
-    if (has(s, "visiting")) return [7, 8];
-    if (s?.highlight?.length) return [9, 10, 11, 12];
+    if (has(s, "visiting")) return [9, 10];
+    if (s?.highlight?.length) return [11];
     return [];
   },
   DFS: (s) => {
-    if (has(s, "visiting")) return [5, 6, 7];
-    if (s?.highlight?.length) return [9, 10, 11];
+    if (has(s, "visiting")) return [9, 10];
+    if (s?.highlight?.length) return [11, 12];
     return [];
   },
   Dijkstra: (s) => {
-    if (has(s, "visiting")) return [7, 8];
-    if (s?.highlight?.length) return [10, 11, 12, 13, 14];
+    if (has(s, "visiting")) return [13, 14];
+    if (s?.highlight?.length) return [15, 16, 17];
     return [];
   },
   "Topological Sort": (s) => {
-    if (has(s, "visiting")) return [11, 12];
-    if (s?.highlight?.length) return [13, 14, 15, 16];
+    if (has(s, "visiting")) return [12, 13];
     return [];
   },
   "Cycle Detection": (s) => {
     const msg = m(s);
-    if (msg.includes("cycle") || msg.includes("back")) return [9];
-    if (has(s, "visiting")) return [7];
+    if (msg.includes("cycle") || msg.includes("back")) return [6];
     return [];
   },
   "Prim MST": (s) => {
-    if (s?.highlight?.length) return [11, 12, 13];
-    if (has(s, "visiting")) return [9, 10];
+    if (has(s, "visiting")) return [10, 11];
     return [];
   },
 };
@@ -168,21 +134,18 @@ const GRAPH: Record<string, StepFn> = {
 // ────────────────────────────── PATHFINDING ──────────────────────────────
 const PATHFINDING: Record<string, StepFn> = {
   BFS: (s) => {
-    if (s?.path?.length) return [10, 11];
-    if (s?.current) return [9, 10];
-    if (s?.frontier?.length) return [12, 13, 14, 15, 16, 17];
+    if (s?.path?.length) return [20, 21];
+    if (s?.current) return [12, 13];
     return [];
   },
   Dijkstra: (s) => {
-    if (s?.path?.length) return [12, 13];
-    if (s?.current) return [11, 12];
-    if (s?.frontier?.length) return [16, 17, 18, 19, 20, 21, 22, 23];
+    if (s?.path?.length) return [25, 26];
+    if (s?.current) return [16, 17];
     return [];
   },
   "A*": (s) => {
-    if (s?.path?.length) return [13, 14];
-    if (s?.current) return [12, 13];
-    if (s?.frontier?.length) return [17, 18, 19, 20, 21, 22, 23, 24];
+    if (s?.path?.length) return [29, 30];
+    if (s?.current) return [19, 20];
     return [];
   },
 };
@@ -191,49 +154,31 @@ const PATHFINDING: Record<string, StepFn> = {
 const DP: Record<string, StepFn> = {
   Fibonacci: (s) => {
     const msg = m(s);
-    if (msg.startsWith("Initialize")) return [3, 4, 5, 6];
-    if (msg.startsWith("fib(")) return [7, 8];
-    return [9];
-  },
-  LCS: (s) => {
-    const msg = m(s);
-    if (msg.startsWith("Initialize")) return [3, 4];
-    if (msg.includes("→ dp[") && msg.includes("+1")) return [7, 8];
-    if (msg.includes("max(")) return [9, 10];
-    if (msg.startsWith("LCS length")) return [11];
+    if (msg.startsWith("Initialize")) return [6, 7];
+    if (msg.startsWith("fib(")) return [9];
     return [];
   },
-  "0/1 Knapsack": (s) => {
-    const msg = m(s);
-    if (msg.startsWith("Initialize")) return [3, 4];
-    if (msg.includes("too heavy")) return [7];
-    if (msg.startsWith("Item ")) return [8, 9, 10, 11, 12];
-    if (msg.startsWith("Max value")) return [13];
-    return [];
-  },
-  "Edit Distance": (s) => {
-    const msg = m(s);
-    if (msg.startsWith("Initialize")) return [5, 6];
-    if (msg.includes("no cost")) return [9, 10];
-    if (msg.includes("min(del")) return [11, 12, 13, 14, 15, 16];
-    if (msg.startsWith("Edit distance")) return [17];
-    return [];
-  },
-  "Coin Change": (s) => {
-    const msg = m(s);
-    if (msg.startsWith("dp[0]")) return [4];
-    if (msg.includes("unreachable")) return [5, 6, 7];
-    if (msg.startsWith("dp[")) return [5, 6, 7, 8];
-    return [9];
-  },
-  LIS: (s) => {
-    const msg = m(s);
-    if (msg.startsWith("Init")) return [5, 6];
-    if (msg.includes(">")) return [7, 8, 9];
-    if (msg.startsWith("LIS length")) return [10];
-    return [];
-  },
+  LCS: () => [],
+  "0/1 Knapsack": () => [],
+  "Edit Distance": () => [],
+  "Coin Change": () => [],
+  LIS: () => [],
 };
+
+// ────────────────────────────── STRINGS ──────────────────────────────
+const STRINGS: Record<string, StepFn> = {
+  Naive: (s) => {
+    const msg = m(s);
+    if (msg.startsWith("✓")) return [9, 10];
+    if (msg.startsWith("Match")) return [9];
+    return [];
+  },
+  KMP: () => [],
+  "Rabin-Karp": () => [],
+  "Z-Algorithm": () => [],
+};
+
+const BACKTRACKING: Record<string, StepFn> = {};
 
 const SECTIONS: Record<PySection, Record<string, StepFn>> = {
   sorting: SORTING,
@@ -243,6 +188,7 @@ const SECTIONS: Record<PySection, Record<string, StepFn>> = {
   graph: GRAPH,
   pathfinding: PATHFINDING,
   dp: DP,
+  backtracking: BACKTRACKING,
 };
 
 export function inferLines(
