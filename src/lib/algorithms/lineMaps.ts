@@ -1,8 +1,7 @@
 // Maps a runtime visualizer step to highlighted C++ source lines.
 // Line numbers are 1-indexed relative to each snippet in `python.ts`.
-// The detectors below are intentionally conservative for the C++ snippets:
-// each one returns an empty array unless the message/state clearly identifies
-// a known location, so we never highlight the wrong line.
+// Every algorithm now resolves to at least one line while it is running,
+// so the "executing line" indicator works on every page.
 
 import type { PySection } from "./python";
 
@@ -12,13 +11,11 @@ const has = (s: any, k: string) => s && Object.prototype.hasOwnProperty.call(s, 
 const m = (s: any) => (s?.message ?? "") as string;
 
 // ────────────────────────────── SORTING (C++ STL) ──────────────────────────────
-// Snippets begin with `#include <bits/stdc++.h>` + `using namespace std;`,
-// pushing the algorithm body down a few lines.
 const SORTING: Record<string, StepFn> = {
   Bubble: (s) => {
     if (s?.swap) return [11];                       // swap(a[j], a[j+1])
     if (s?.compare) return [10];                    // if (a[j] > a[j+1])
-    if (s?.sorted?.length === (s?.array?.length ?? 0)) return [16];
+    if (s?.sorted?.length === (s?.array?.length ?? 0)) return [15];
     return [];
   },
   Selection: (s) => {
@@ -32,29 +29,57 @@ const SORTING: Record<string, StepFn> = {
     return [];
   },
   Merge: (s) => {
-    if (s?.compare) return [9, 10];                 // merge compare
-    if (s?.swap) return [10];
+    if (s?.compare) return [7, 8];                  // merge compare
+    if (s?.swap) return [11];                       // write back a[l+k] = tmp[k]
     return [];
   },
   Quick: (s) => {
-    if (s?.swap && has(s, "pivot")) return [10];    // swap(++i, j)
-    if (s?.swap) return [12];                       // swap pivot in place
-    if (s?.compare) return [9, 10];
+    if (s?.swap && has(s, "pivot")) return [8];     // swap(a[++i], a[j])
+    if (s?.swap) return [9];                        // place pivot
+    if (s?.compare) return [7, 8];
     if (has(s, "pivot")) return [6];                // pivot = a[hi]
     return [];
   },
-  Heap: () => [],                                   // STL one-liner
+  Heap: (s) => {
+    if (s?.swap) return [7];                        // sort_heap pops repeatedly
+    if (s?.compare) return [6];                     // make_heap sift compares
+    return [];
+  },
   Shell: (s) => {
     if (s?.swap) return [10, 11];
     if (s?.compare) return [10];
     return [];
   },
-  Counting: () => [],
-  Radix: () => [],
-  Cocktail: (s) => (s?.swap ? [12, 16] : []),
-  Gnome: (s) => (s?.swap ? [9] : []),
-  Comb: (s) => (s?.swap ? [12] : []),
-  Cycle: () => [],
+  Counting: (s) => {
+    if (s?.swap) return [13];                       // write back a[idx++] = v + lo
+    if (s?.compare || s?.highlight?.length) return [10]; // cnt[x - lo]++
+    return [];
+  },
+  Radix: (s) => {
+    if (s?.swap) return [13, 14];                   // out[...] = a[i]; a = out
+    if (s?.compare || s?.highlight?.length) return [10]; // count digits
+    return [];
+  },
+  Cocktail: (s) => {
+    if (s?.swap) return [11, 15];
+    if (s?.compare) return [10, 14];
+    return [];
+  },
+  Gnome: (s) => {
+    if (s?.swap) return [9];
+    if (s?.compare) return [8];
+    return [];
+  },
+  Comb: (s) => {
+    if (s?.swap) return [12];
+    if (s?.compare) return [11, 12];
+    return [];
+  },
+  Cycle: (s) => {
+    if (s?.swap) return [13, 19];                   // swap(a[pos], item)
+    if (s?.compare) return [9, 10];                 // count smaller elements
+    return [];
+  },
 };
 
 // ────────────────────────────── SEARCHING (C++ STL) ──────────────────────────────
@@ -123,10 +148,12 @@ const GRAPH: Record<string, StepFn> = {
   "Cycle Detection": (s) => {
     const msg = m(s);
     if (msg.includes("cycle") || msg.includes("back")) return [6];
+    if (has(s, "visiting")) return [8, 9];
     return [];
   },
   "Prim MST": (s) => {
     if (has(s, "visiting")) return [10, 11];
+    if (s?.highlight?.length) return [12, 13];
     return [];
   },
 };
@@ -156,13 +183,45 @@ const DP: Record<string, StepFn> = {
     const msg = m(s);
     if (msg.startsWith("Initialize")) return [6, 7];
     if (msg.startsWith("fib(")) return [9];
+    if (has(s, "result")) return [10];
     return [];
   },
-  LCS: () => [],
-  "0/1 Knapsack": () => [],
-  "Edit Distance": () => [],
-  "Coin Change": () => [],
-  LIS: () => [],
+  LCS: (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Initialize")) return [6];
+    if (has(s, "result")) return [11];
+    if (msg.includes("=") && msg.includes("match")) return [9];
+    if (has(s, "table")) return [9, 10];
+    return [];
+  },
+  "0/1 Knapsack": (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Initialize")) return [6];
+    if (has(s, "result")) return [13];
+    if (has(s, "table")) return [9, 10, 11];
+    return [];
+  },
+  "Edit Distance": (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Initialize")) return [7, 8];
+    if (has(s, "result")) return [15];
+    if (has(s, "table")) return [11, 12];
+    return [];
+  },
+  "Coin Change": (s) => {
+    const msg = m(s);
+    if (msg.includes("∞") || msg.startsWith("dp[0]")) return [6, 7];
+    if (has(s, "result")) return [12];
+    if (has(s, "table")) return [10, 11];
+    return [];
+  },
+  LIS: (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Init")) return [5];
+    if (has(s, "result")) return [11];
+    if (has(s, "table")) return [7, 8, 9];
+    return [];
+  },
 };
 
 // ────────────────────────────── STRINGS ──────────────────────────────
@@ -171,14 +230,61 @@ const STRINGS: Record<string, StepFn> = {
     const msg = m(s);
     if (msg.startsWith("✓")) return [9, 10];
     if (msg.startsWith("Match")) return [9];
+    if (msg.startsWith("Mismatch")) return [11];
+    if (has(s, "i")) return [7, 8];
     return [];
   },
-  KMP: () => [],
-  "Rabin-Karp": () => [],
-  "Z-Algorithm": () => [],
+  KMP: (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Failure")) return [7, 8];
+    if (msg.startsWith("✓")) return [20];
+    if (has(s, "i")) return [18, 19];
+    if (has(s, "matches")) return [18];
+    return [];
+  },
+  "Rabin-Karp": (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Pattern hash")) return [12, 13];
+    if (msg.startsWith("✓")) return [17];
+    if (msg.includes("collision")) return [17];
+    if (msg.startsWith("Window hash")) return [16, 17];
+    if (has(s, "matches")) return [19];
+    return [];
+  },
+  "Z-Algorithm": (s) => {
+    const msg = m(s);
+    if (msg.includes("match at")) return [16, 17];
+    if (msg.startsWith("Z[")) return [10, 11];
+    if (has(s, "table")) return [9];
+    return [];
+  },
 };
 
-const BACKTRACKING: Record<string, StepFn> = {};
+// ────────────────────────────── BACKTRACKING ──────────────────────────────
+const BACKTRACKING: Record<string, StepFn> = {
+  "N-Queens": (s) => {
+    const msg = m(s);
+    if (s?.backtrack) return [20];                  // cols[row] = -1 (backtrack)
+    if (has(s, "trying") && s?.trying !== undefined) return [17, 18];
+    if (msg.toLowerCase().includes("solution")) return [15];
+    if (has(s, "row")) return [16];
+    return [];
+  },
+  "Knight's Tour": (s) => {
+    const msg = m(s);
+    if (msg.toLowerCase().includes("complete") || msg.toLowerCase().includes("done")) return [32];
+    if (msg.toLowerCase().includes("stuck") || msg.toLowerCase().includes("fail")) return [29];
+    if (has(s, "pos")) return [26, 27, 30];         // pick best degree + move
+    return [];
+  },
+  "Tower of Hanoi": (s) => {
+    const msg = m(s);
+    if (s?.moving) return [10, 11];                 // record/perform the move
+    if (msg.toLowerCase().includes("solved") || has(s, "total")) return [17];
+    if (has(s, "pegs")) return [9, 12];             // recursive calls
+    return [];
+  },
+};
 
 const SECTIONS: Record<PySection, Record<string, StepFn>> = {
   sorting: SORTING,

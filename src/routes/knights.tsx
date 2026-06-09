@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useCallback, useState } from "react";
 import { Controls } from "../components/viz/Controls";
 import { PythonCodePanel } from "../components/PythonCodePanel";
+import { inferLines } from "../lib/algorithms/lineMaps";
 import { knightTourGen } from "../lib/algorithms/backtracking";
 import { usePlayer } from "../lib/usePlayer";
 
@@ -116,7 +117,7 @@ function KnightsPage() {
         />
       </div>
       <aside className="min-w-0">
-        <PythonCodePanel section="backtracking" algo="Knight's Tour" accentColor={ACCENT} />
+        <PythonCodePanel section="backtracking" algo="Knight's Tour" accentColor={ACCENT} activeLines={inferLines("backtracking", "Knight's Tour", current)} />
       </aside>
     </div>
   );

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useCallback, useState } from "react";
 import { Controls } from "../components/viz/Controls";
 import { PythonCodePanel } from "../components/PythonCodePanel";
+import { inferLines } from "../lib/algorithms/lineMaps";
 import { nQueensGen } from "../lib/algorithms/backtracking";
 import { usePlayer } from "../lib/usePlayer";
 
@@ -135,7 +136,7 @@ function NQueensPage() {
         />
       </div>
       <aside className="min-w-0">
-        <PythonCodePanel section="backtracking" algo="N-Queens" accentColor={ACCENT} />
+        <PythonCodePanel section="backtracking" algo="N-Queens" accentColor={ACCENT} activeLines={inferLines("backtracking", "N-Queens", current)} />
       </aside>
     </div>
   );

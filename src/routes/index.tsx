@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 
 export const Route = createFileRoute("/")(
@@ -17,21 +17,103 @@ export const Route = createFileRoute("/")(
   }
 );
 
-// ─── Three.js animated scene ──────────────────────────────────────────────────
+// ─── Three.js interactive 3D sorting visualizer ──────────────────────────────
+const HERO_ALGOS = ["Bubble", "Selection", "Insertion", "Quick"] as const;
+type HeroAlgo = (typeof HERO_ALGOS)[number];
+
+type SortStep =
+  | { type: "compare"; i: number; j: number }
+  | { type: "swap"; i: number; j: number }
+  | { type: "sorted"; i: number };
+
+function genSortSteps(algo: HeroAlgo, input: number[]): SortStep[] {
+  const a = [...input];
+  const n = a.length;
+  const steps: SortStep[] = [];
+  const cmp = (i: number, j: number) => steps.push({ type: "compare", i, j });
+  const swp = (i: number, j: number) => {
+    [a[i], a[j]] = [a[j], a[i]];
+    steps.push({ type: "swap", i, j });
+  };
+
+  if (algo === "Bubble") {
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = 0; j < n - 1 - i; j++) {
+        cmp(j, j + 1);
+        if (a[j] > a[j + 1]) swp(j, j + 1);
+      }
+      steps.push({ type: "sorted", i: n - 1 - i });
+    }
+    steps.push({ type: "sorted", i: 0 });
+  } else if (algo === "Selection") {
+    for (let i = 0; i < n - 1; i++) {
+      let mn = i;
+      for (let j = i + 1; j < n; j++) {
+        cmp(mn, j);
+        if (a[j] < a[mn]) mn = j;
+      }
+      if (mn !== i) swp(i, mn);
+      steps.push({ type: "sorted", i });
+    }
+    steps.push({ type: "sorted", i: n - 1 });
+  } else if (algo === "Insertion") {
+    for (let i = 1; i < n; i++) {
+      let j = i;
+      while (j > 0) {
+        cmp(j - 1, j);
+        if (a[j - 1] > a[j]) {
+          swp(j - 1, j);
+          j--;
+        } else break;
+      }
+    }
+    for (let i = 0; i < n; i++) steps.push({ type: "sorted", i });
+  } else {
+    // Quick (Lomuto)
+    const qs = (lo: number, hi: number) => {
+      if (lo >= hi) {
+        if (lo === hi) steps.push({ type: "sorted", i: lo });
+        return;
+      }
+      const pivot = a[hi];
+      let i = lo - 1;
+      for (let j = lo; j < hi; j++) {
+        cmp(j, hi);
+        if (a[j] <= pivot) {
+          i++;
+          if (i !== j) swp(i, j);
+        }
+      }
+      if (i + 1 !== hi) swp(i + 1, hi);
+      steps.push({ type: "sorted", i: i + 1 });
+      qs(lo, i);
+      qs(i + 2, hi);
+    };
+    qs(0, n - 1);
+  }
+  return steps;
+}
+
+const BAR_COUNT = 16;
+
 function ThreeScene() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [algo, setAlgo] = useState<HeroAlgo>("Bubble");
+  const [shuffleKey, setShuffleKey] = useState(0);
 
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
 
-    const W = el.clientWidth;
-    const H = el.clientHeight;
+    const W = el.clientWidth || 1;
+    const H = el.clientHeight || 1;
 
-    // Scene setup
+    // ── Scene / camera / renderer ──────────────────────────────────────
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 100);
-    camera.position.set(0, 0, 7);
+    scene.fog = new THREE.Fog(new THREE.Color("#05060d"), 9, 18);
+
+    const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
+    camera.position.set(0, 1.4, 7.6);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -39,198 +121,303 @@ function ThreeScene() {
     renderer.setClearColor(0x000000, 0);
     el.appendChild(renderer.domElement);
 
-    // ── 1. Floating node graph ────────────────────────────────────────────
-    const nodeCount = 18;
-    const nodeMeshes: THREE.Mesh[] = [];
-    const nodePositions: THREE.Vector3[] = [];
-    const nodeVelocities: THREE.Vector3[] = [];
+    // ── Lights ─────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    const key = new THREE.DirectionalLight(0xffffff, 1.4);
+    key.position.set(3, 6, 4);
+    scene.add(key);
+    const rim = new THREE.PointLight(new THREE.Color("#4da3ff"), 14, 22);
+    rim.position.set(-5, 3, -4);
+    scene.add(rim);
+    const rim2 = new THREE.PointLight(new THREE.Color("#3ddc97"), 9, 20);
+    rim2.position.set(5, -1, 3);
+    scene.add(rim2);
 
-    const nodeGeo = new THREE.SphereGeometry(0.08, 16, 16);
-    const colors = [
-      new THREE.Color("oklch(0.72 0.19 255)"),
-      new THREE.Color("oklch(0.75 0.18 162)"),
-      new THREE.Color("oklch(0.82 0.18 85)"),
-      new THREE.Color("oklch(0.68 0.22 22)"),
-    ];
+    // ── World group (drag-rotates) ─────────────────────────────────────
+    const world = new THREE.Group();
+    scene.add(world);
 
-    for (let i = 0; i < nodeCount; i++) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: colors[i % colors.length],
-        transparent: true,
-        opacity: 0.85,
-      });
-      const mesh = new THREE.Mesh(nodeGeo, mat);
-      const pos = new THREE.Vector3(
-        (Math.random() - 0.5) * 8,
-        (Math.random() - 0.5) * 4,
-        (Math.random() - 0.5) * 2
-      );
-      mesh.position.copy(pos);
-      nodePositions.push(pos);
-      const vel = new THREE.Vector3(
-        (Math.random() - 0.5) * 0.008,
-        (Math.random() - 0.5) * 0.008,
-        (Math.random() - 0.5) * 0.003
-      );
-      nodeVelocities.push(vel);
-      nodeMeshes.push(mesh);
-      scene.add(mesh);
+    // Floor grid
+    const grid = new THREE.GridHelper(14, 28, new THREE.Color("#27406b"), new THREE.Color("#141d33"));
+    (grid.material as THREE.Material).transparent = true;
+    (grid.material as THREE.Material).opacity = 0.35;
+    grid.position.y = -1.62;
+    world.add(grid);
+
+    // Particle backdrop
+    const pCount = 220;
+    const pPos = new Float32Array(pCount * 3);
+    for (let i = 0; i < pCount; i++) {
+      pPos[i * 3] = (Math.random() - 0.5) * 16;
+      pPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
+      pPos[i * 3 + 2] = (Math.random() - 0.5) * 10 - 2;
     }
-
-    // ── 2. Edges between nearby nodes ────────────────────────────────────
-    const edgeLines: THREE.Line[] = [];
-    const edgeMat = new THREE.LineBasicMaterial({
-      color: new THREE.Color("oklch(0.72 0.19 255)"),
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
+    const pMat = new THREE.PointsMaterial({
+      color: new THREE.Color("#7aa7ff"),
+      size: 0.035,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.45,
+      depthWrite: false,
     });
+    const particles = new THREE.Points(pGeo, pMat);
+    world.add(particles);
 
-    function rebuildEdges() {
-      edgeLines.forEach((l) => scene.remove(l));
-      edgeLines.length = 0;
-      const threshold = 2.8;
-      for (let i = 0; i < nodeCount; i++) {
-        for (let j = i + 1; j < nodeCount; j++) {
-          if (nodePositions[i].distanceTo(nodePositions[j]) < threshold) {
-            const geo = new THREE.BufferGeometry().setFromPoints([
-              nodePositions[i].clone(),
-              nodePositions[j].clone(),
-            ]);
-            const line = new THREE.Line(geo, edgeMat);
-            edgeLines.push(line);
-            scene.add(line);
-          }
-        }
-      }
+    // ── Sorting bars ───────────────────────────────────────────────────
+    const SPACING = 0.46;
+    const X0 = -((BAR_COUNT - 1) * SPACING) / 2;
+    const xAt = (slot: number) => X0 + slot * SPACING;
+    const hOf = (v: number) => 0.45 + v * 2.6; // v in (0,1]
+
+    // values 1..BAR_COUNT shuffled
+    const values = Array.from({ length: BAR_COUNT }, (_, i) => (i + 1) / BAR_COUNT);
+    for (let i = values.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [values[i], values[j]] = [values[j], values[i]];
     }
-    rebuildEdges();
 
-    // ── 3. Sorting bars in the back plane ────────────────────────────────
-    const barCount = 12;
-    const barHeights = Array.from({ length: barCount }, (_, i) =>
-      0.3 + ((i * 7 + 3) % barCount) * 0.2
-    );
-    const barMeshes: THREE.Mesh[] = [];
-    const barTargets: number[] = [...barHeights];
+    interface Bar {
+      mesh: THREE.Mesh;
+      mat: THREE.MeshStandardMaterial;
+      value: number;
+      slot: number; // current logical slot
+      sorted: boolean;
+    }
 
-    for (let i = 0; i < barCount; i++) {
-      const h = barHeights[i];
-      const geo = new THREE.BoxGeometry(0.3, h, 0.15);
-      const frac = i / (barCount - 1);
+    const baseColor = (v: number) => {
       const c = new THREE.Color();
-      c.setHSL(0.58 + frac * 0.25, 0.8, 0.55);
-      const mat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.28 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(-2.2 + i * 0.4, h / 2 - 1.8, -1.5);
-      barMeshes.push(mesh);
-      scene.add(mesh);
+      c.setHSL(0.62 - v * 0.13, 0.75, 0.42 + v * 0.18); // deep blue → cyan
+      return c;
+    };
+    const C_COMPARE = new THREE.Color("#ffd34d");
+    const C_SWAP = new THREE.Color("#ff6b5e");
+    const C_SORTED = new THREE.Color("#3ddc97");
+    const C_HOVER = new THREE.Color("#ffffff");
+
+    const bars: Bar[] = [];
+    const slotToBar: Bar[] = [];
+    const barGeo = new THREE.BoxGeometry(0.32, 1, 0.32);
+
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: baseColor(values[i]),
+        emissive: baseColor(values[i]),
+        emissiveIntensity: 0.18,
+        roughness: 0.35,
+        metalness: 0.25,
+      });
+      const mesh = new THREE.Mesh(barGeo, mat);
+      const h = hOf(values[i]);
+      mesh.scale.y = h;
+      mesh.position.set(xAt(i), h / 2 - 1.6, 0);
+      world.add(mesh);
+      const bar: Bar = { mesh, mat, value: values[i], slot: i, sorted: false };
+      bars.push(bar);
+      slotToBar[i] = bar;
     }
 
-    // ── 4. Pathfinding grid dots ──────────────────────────────────────────
-    const dotGeo = new THREE.SphereGeometry(0.04, 8, 8);
-    const dotMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color("oklch(0.75 0.18 162)"),
-      transparent: true,
-      opacity: 0.22,
-    });
-    for (let gx = -3; gx <= 3; gx++) {
-      for (let gy = -1; gy <= 1; gy++) {
-        const dot = new THREE.Mesh(dotGeo, dotMat);
-        dot.position.set(gx * 0.7, gy * 0.7 - 0.3, -3);
-        scene.add(dot);
+    // ── Sorting playback state ─────────────────────────────────────────
+    let steps = genSortSteps(algo, values);
+    let stepIdx = 0;
+    let frame = 0;
+    let framesPerStep = 6;
+    let cooldown = 0; // pause frames between runs
+    let comparing: [Bar, Bar] | null = null;
+
+    interface SwapTween {
+      a: Bar;
+      b: Bar;
+      t: number; // 0..1
+      fromA: number;
+      fromB: number;
+    }
+    const tweens: SwapTween[] = [];
+
+    function reshuffle() {
+      // shuffle the *bars'* values in place, reset visuals & steps
+      const vals = bars.map((b) => b.value);
+      for (let i = vals.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [vals[i], vals[j]] = [vals[j], vals[i]];
+      }
+      bars.forEach((b, i) => {
+        b.value = vals[i];
+        b.sorted = false;
+        b.slot = i;
+        slotToBar[i] = b;
+        const h = hOf(b.value);
+        b.mesh.scale.y = h;
+        b.mesh.position.set(xAt(i), h / 2 - 1.6, 0);
+      });
+      steps = genSortSteps(algo, vals);
+      stepIdx = 0;
+      comparing = null;
+      tweens.length = 0;
+      cooldown = 30;
+    }
+
+    function applyStep(s: SortStep) {
+      if (s.type === "compare") {
+        comparing = [slotToBar[s.i], slotToBar[s.j]];
+      } else if (s.type === "swap") {
+        const A = slotToBar[s.i];
+        const B = slotToBar[s.j];
+        tweens.push({ a: A, b: B, t: 0, fromA: xAt(A.slot), fromB: xAt(B.slot) });
+        const tmp = A.slot;
+        A.slot = B.slot;
+        B.slot = tmp;
+        slotToBar[A.slot] = A;
+        slotToBar[B.slot] = B;
+        comparing = null;
+      } else {
+        slotToBar[s.i].sorted = true;
+        comparing = null;
       }
     }
 
-    // ── Animation loop ────────────────────────────────────────────────────
-    let frame = 0;
-    let animId: number;
-    let edgeRebuildCounter = 0;
+    // ── Interaction: drag-orbit, hover, click-to-shuffle ───────────────
+    const raycaster = new THREE.Raycaster();
+    const pointerNDC = new THREE.Vector2(-10, -10);
+    let hovered: Bar | null = null;
 
-    // Sort animation state
-    let sortStep = 0;
-    let sortTimer = 0;
-    const sortedTargets = [...barTargets].sort((a, b) => a - b);
-    let currentTargets = [...barTargets];
-    let sortPhase = 0; // 0 = shuffle, 1 = sort
+    let dragging = false;
+    let moved = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let targetYaw = 0;
+    let targetPitch = 0.06;
+
+    const dom = renderer.domElement;
+    dom.style.touchAction = "none";
+
+    const onPointerDown = (e: PointerEvent) => {
+      dragging = true;
+      moved = 0;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      dom.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = dom.getBoundingClientRect();
+      pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      if (dragging) {
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        moved += Math.abs(dx) + Math.abs(dy);
+        targetYaw += dx * 0.006;
+        targetPitch = THREE.MathUtils.clamp(targetPitch + dy * 0.004, -0.15, 0.5);
+        lastX = e.clientX;
+        lastY = e.clientY;
+      }
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      if (dragging && moved < 6) reshuffle(); // a click (not a drag) reshuffles
+      dragging = false;
+      try { dom.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    };
+    const onPointerLeave = () => {
+      pointerNDC.set(-10, -10);
+    };
+    dom.addEventListener("pointerdown", onPointerDown);
+    dom.addEventListener("pointermove", onPointerMove);
+    dom.addEventListener("pointerup", onPointerUp);
+    dom.addEventListener("pointerleave", onPointerLeave);
+
+    // ── Animation loop ─────────────────────────────────────────────────
+    let animId: number;
 
     function animate() {
       animId = requestAnimationFrame(animate);
       frame++;
-      edgeRebuildCounter++;
 
-      // Move nodes
-      for (let i = 0; i < nodeCount; i++) {
-        nodePositions[i].add(nodeVelocities[i]);
-        // Bounce off soft bounding box
-        if (Math.abs(nodePositions[i].x) > 4.2) nodeVelocities[i].x *= -1;
-        if (Math.abs(nodePositions[i].y) > 2.2) nodeVelocities[i].y *= -1;
-        if (Math.abs(nodePositions[i].z) > 1.2) nodeVelocities[i].z *= -1;
-        nodeMeshes[i].position.copy(nodePositions[i]);
-        // Pulse opacity
-        const mat = nodeMeshes[i].material as THREE.MeshBasicMaterial;
-        mat.opacity = 0.5 + 0.35 * Math.sin(frame * 0.025 + i * 0.7);
-      }
-
-      // Rebuild edges every 8 frames
-      if (edgeRebuildCounter >= 8) {
-        rebuildEdges();
-        edgeRebuildCounter = 0;
-      }
-
-      // Animate bars (bubble sort steps, then shuffle)
-      sortTimer++;
-      if (sortTimer > 60) {
-        sortTimer = 0;
-        if (sortPhase === 0) {
-          // bubble sort one step
-          let swapped = false;
-          for (let i = 0; i < currentTargets.length - 1 - sortStep; i++) {
-            if (currentTargets[i] > currentTargets[i + 1]) {
-              [currentTargets[i], currentTargets[i + 1]] = [currentTargets[i + 1], currentTargets[i]];
-              swapped = true;
-              break;
-            }
-          }
-          if (!swapped) {
-            sortStep++;
-            if (sortStep >= currentTargets.length) {
-              sortPhase = 1;
-              sortStep = 0;
-              setTimeout(() => {
-                // shuffle
-                for (let i = currentTargets.length - 1; i > 0; i--) {
-                  const j = Math.floor(Math.random() * (i + 1));
-                  [currentTargets[i], currentTargets[j]] = [currentTargets[j], currentTargets[i]];
-                }
-                sortPhase = 0;
-              }, 2000);
-            }
-          }
-        }
-        // lerp bars to targets
-        for (let i = 0; i < barCount; i++) {
-          const target = currentTargets[i];
-          barMeshes[i].scale.y = THREE.MathUtils.lerp(barMeshes[i].scale.y, target / barHeights[i], 0.15);
-          barMeshes[i].position.y =
-            (barMeshes[i].scale.y * barHeights[i]) / 2 - 1.8;
+      // Playback: advance algorithm steps
+      if (cooldown > 0) {
+        cooldown--;
+      } else if (frame % framesPerStep === 0) {
+        if (stepIdx < steps.length) {
+          // speed up long tails (bubble sort gets chatty)
+          framesPerStep = steps.length - stepIdx > 160 ? 3 : steps.length - stepIdx > 60 ? 4 : 6;
+          applyStep(steps[stepIdx++]);
+        } else if (steps.length > 0) {
+          // run finished — admire the sorted state, then loop forever
+          comparing = null;
+          cooldown = 130;
+          steps = [];
+          stepIdx = 0;
+        } else {
+          reshuffle();
         }
       }
 
-      // Gentle camera float
-      camera.position.x = Math.sin(frame * 0.004) * 0.4;
-      camera.position.y = Math.cos(frame * 0.003) * 0.2;
-      camera.lookAt(0, 0, 0);
+      // Swap tweens — bars arc over each other while trading places
+      for (let k = tweens.length - 1; k >= 0; k--) {
+        const tw = tweens[k];
+        tw.t = Math.min(1, tw.t + 0.08);
+        const e = 0.5 - 0.5 * Math.cos(Math.PI * tw.t); // ease in-out
+        const lift = Math.sin(Math.PI * tw.t) * 0.55;
+        tw.a.mesh.position.x = THREE.MathUtils.lerp(tw.fromA, xAt(tw.a.slot), e);
+        tw.b.mesh.position.x = THREE.MathUtils.lerp(tw.fromB, xAt(tw.b.slot), e);
+        tw.a.mesh.position.z = lift;
+        tw.b.mesh.position.z = -lift;
+        if (tw.t >= 1) {
+          tw.a.mesh.position.z = 0;
+          tw.b.mesh.position.z = 0;
+          tweens.splice(k, 1);
+        }
+      }
+
+      // Hover raycast
+      raycaster.setFromCamera(pointerNDC, camera);
+      const hits = raycaster.intersectObjects(bars.map((b) => b.mesh), false);
+      hovered = hits.length ? bars.find((b) => b.mesh === hits[0].object) ?? null : null;
+
+      // Bar colors / glow
+      for (const b of bars) {
+        const inTween = tweens.some((tw) => tw.a === b || tw.b === b);
+        const isCmp = comparing !== null && (comparing[0] === b || comparing[1] === b);
+        let target: THREE.Color;
+        let glow = 0.18;
+        if (b === hovered) {
+          target = C_HOVER; glow = 0.5;
+        } else if (inTween) {
+          target = C_SWAP; glow = 0.9;
+        } else if (isCmp) {
+          target = C_COMPARE; glow = 0.8;
+        } else if (b.sorted) {
+          target = C_SORTED; glow = 0.35;
+        } else {
+          target = baseColor(b.value);
+        }
+        b.mat.color.lerp(target, 0.25);
+        b.mat.emissive.lerp(target, 0.25);
+        b.mat.emissiveIntensity += (glow - b.mat.emissiveIntensity) * 0.2;
+        // subtle hover pop
+        const hs = hOf(b.value) * (b === hovered ? 1.04 : 1);
+        b.mesh.scale.y += (hs - b.mesh.scale.y) * 0.25;
+        b.mesh.position.y = b.mesh.scale.y / 2 - 1.6;
+      }
+
+      // Particles drift
+      particles.rotation.y = frame * 0.0006;
+
+      // World rotation: drag target + gentle idle drift + pointer parallax
+      const idle = dragging ? 0 : Math.sin(frame * 0.0035) * 0.07;
+      world.rotation.y += (targetYaw + idle - world.rotation.y) * 0.07;
+      world.rotation.x += (targetPitch - world.rotation.x) * 0.07;
+
+      camera.position.x += (pointerNDC.x === -10 ? 0 : pointerNDC.x * 0.35 - camera.position.x) * 0.03;
+      camera.lookAt(0, -0.1, 0);
 
       renderer.render(scene, camera);
     }
-
     animate();
 
-    // Resize handler
+    // ── Resize / cleanup ───────────────────────────────────────────────
     const onResize = () => {
-      if (!el) return;
-      const w = el.clientWidth;
-      const h = el.clientHeight;
+      const w = el.clientWidth || 1;
+      const h = el.clientHeight || 1;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -240,12 +427,64 @@ function ThreeScene() {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", onResize);
+      dom.removeEventListener("pointerdown", onPointerDown);
+      dom.removeEventListener("pointermove", onPointerMove);
+      dom.removeEventListener("pointerup", onPointerUp);
+      dom.removeEventListener("pointerleave", onPointerLeave);
+      barGeo.dispose();
+      pGeo.dispose();
+      pMat.dispose();
+      bars.forEach((b) => b.mat.dispose());
       renderer.dispose();
-      el.removeChild(renderer.domElement);
+      if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [algo, shuffleKey]);
 
-  return <div ref={mountRef} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div className="relative w-full h-full">
+      <div
+        ref={mountRef}
+        className="absolute inset-0"
+        style={{ cursor: "grab" }}
+      />
+      {/* Algorithm picker */}
+      <div className="absolute top-3 left-0 right-0 flex flex-wrap justify-center gap-1.5 z-10 px-3">
+        {HERO_ALGOS.map((a) => (
+          <button
+            key={a}
+            onClick={() => setAlgo(a)}
+            className="px-2.5 py-1 rounded-full text-[11px] font-mono transition-all hover:scale-105"
+            style={{
+              background: a === algo ? "oklch(0.72 0.19 255 / 20%)" : "oklch(1 0 0 / 5%)",
+              color: a === algo ? "oklch(0.78 0.15 255)" : "oklch(0.55 0.04 255)",
+              border: `1px solid ${a === algo ? "oklch(0.72 0.19 255 / 45%)" : "oklch(1 0 0 / 10%)"}`,
+            }}
+          >
+            {a}
+          </button>
+        ))}
+        <button
+          onClick={() => setShuffleKey((k) => k + 1)}
+          className="px-2.5 py-1 rounded-full text-[11px] font-mono transition-all hover:scale-105"
+          style={{
+            background: "oklch(0.75 0.18 162 / 14%)",
+            color: "oklch(0.75 0.18 162)",
+            border: "1px solid oklch(0.75 0.18 162 / 35%)",
+          }}
+          title="Shuffle the bars"
+        >
+          ⤨ Shuffle
+        </button>
+      </div>
+      {/* Hint */}
+      <div
+        className="absolute top-12 left-0 right-0 text-center text-[10px] font-mono pointer-events-none z-10"
+        style={{ color: "oklch(0.45 0.04 255)" }}
+      >
+        drag to rotate · click bars to shuffle
+      </div>
+    </div>
+  );
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -415,11 +654,11 @@ function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.6 }}
-          className="mx-auto mt-10 max-w-2xl rounded-2xl overflow-hidden relative"
+          className="mx-auto mt-10 max-w-3xl rounded-2xl overflow-hidden relative"
           style={{
             background: "oklch(0.08 0.02 265)",
             border: "1px solid oklch(1 0 0 / 10%)",
-            height: "260px",
+            height: "340px",
           }}
         >
           {/* Corner glow accents */}
@@ -430,12 +669,12 @@ function Index() {
 
           <ThreeScene />
 
-          {/* Label row */}
+          {/* Legend row */}
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-4 pointer-events-none">
             {[
-              { dot: "oklch(0.72 0.19 255)", label: "Graph nodes" },
-              { dot: "oklch(0.75 0.18 162)", label: "Grid paths" },
-              { dot: "oklch(0.82 0.18 85)",  label: "Sort bars" },
+              { dot: "#ffd34d", label: "Comparing" },
+              { dot: "#ff6b5e", label: "Swapping" },
+              { dot: "#3ddc97", label: "Sorted" },
             ].map(({ dot, label }) => (
               <span key={label} className="flex items-center gap-1 text-[10px] font-mono"
                 style={{ color: "oklch(0.50 0.04 255)" }}>
