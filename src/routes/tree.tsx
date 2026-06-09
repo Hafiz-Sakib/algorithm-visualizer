@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useCallback, useMemo, useState } from "react";
 import { Controls } from "../components/viz/Controls";
 import { PythonCodePanel } from "../components/PythonCodePanel";
+import { inferLines } from "../lib/algorithms/lineMaps";
 import { buildBST, flatten, TRAVERSALS, type TraversalName } from "../lib/algorithms/tree";
 import { usePlayer } from "../lib/usePlayer";
 
@@ -67,7 +68,7 @@ function TreePage() {
   const accentColor = ALGO_COLOR[algo];
 
   return (
-    <div className="grid gap-4 py-2 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start">
+    <div className="space-y-4 py-2">
       <div className="space-y-4 min-w-0">
       {/* Header */}
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -218,8 +219,8 @@ function TreePage() {
         </div>
       </div>
       </div>
-      <aside className="lg:sticky lg:top-4 min-w-0">
-        <PythonCodePanel section="tree" algo={algo} accentColor={ALGO_COLOR[algo]} />
+      <aside className="min-w-0">
+        <PythonCodePanel section="tree" algo={algo} accentColor={ALGO_COLOR[algo]} activeLines={inferLines("tree", algo, current)} />
       </aside>
     </div>
   );

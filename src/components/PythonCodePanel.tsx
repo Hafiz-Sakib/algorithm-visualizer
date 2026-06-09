@@ -5,8 +5,8 @@ interface PythonCodePanelProps {
   section: PySection;
   algo: string;
   accentColor: string;
-  /** Visual mode. "tabs" = stacked toggle view (mobile/small screens). "panel" = always-visible code panel (side-by-side on md+). */
-  variant?: "tabs" | "panel";
+  /** Lines (1-indexed) to highlight as currently-executing. */
+  activeLines?: number[];
 }
 
 // Tiny Python-only syntax highlighter (regex-based; safe for short snippets).
@@ -27,29 +27,18 @@ function highlightPython(code: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // Strings (triple + single/double). Triple-quoted first.
   out = out.replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g, '<span class="tok-str">$1</span>');
   out = out.replace(/(?<!class=")(["'])(?:(?!\1)[^\\\n]|\\.)*?\1/g, '<span class="tok-str">$&</span>');
-
-  // Comments
   out = out.replace(/(#[^\n]*)/g, '<span class="tok-comment">$1</span>');
-
-  // Numbers
   out = out.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
-
-  // Keywords
   out = out.replace(
     new RegExp(`\\b(${PY_KEYWORDS.join("|")})\\b`, "g"),
     '<span class="tok-kw">$1</span>',
   );
-
-  // Builtins
   out = out.replace(
     new RegExp(`\\b(${PY_BUILTINS.join("|")})\\b(?=\\s*\\()`, "g"),
     '<span class="tok-builtin">$1</span>',
   );
-
-  // def NAME -> highlight function name
   out = out.replace(/\b(def)\s+([A-Za-z_]\w*)/g, '<span class="tok-kw">def</span> <span class="tok-fn">$2</span>');
 
   return out;
@@ -59,14 +48,17 @@ export function PythonCodePanel({
   section,
   algo,
   accentColor,
-  variant = "panel",
+  activeLines = [],
 }: PythonCodePanelProps) {
   const snippet = PYTHON_CODES[section]?.[algo];
   const [copied, setCopied] = useState(false);
-  const html = useMemo(
-    () => (snippet ? highlightPython(snippet.code) : ""),
-    [snippet],
-  );
+
+  const lines = useMemo(() => {
+    if (!snippet) return [] as string[];
+    return snippet.code.split("\n").map((l) => highlightPython(l) || "&nbsp;");
+  }, [snippet]);
+
+  const activeSet = useMemo(() => new Set(activeLines), [activeLines]);
 
   if (!snippet) {
     return (
@@ -88,9 +80,7 @@ export function PythonCodePanel({
       await navigator.clipboard.writeText(snippet.code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const download = () => {
@@ -112,7 +102,6 @@ export function PythonCodePanel({
       style={{
         background: "oklch(0.10 0.02 265)",
         border: "1px solid oklch(1 0 0 / 8%)",
-        minHeight: variant === "panel" ? "240px" : undefined,
       }}
     >
       <style>{`
@@ -148,6 +137,16 @@ export function PythonCodePanel({
           >
             Space {snippet.space}
           </span>
+          {activeLines.length > 0 && (
+            <span
+              className="text-[10px] font-mono px-2 py-0.5 rounded-full hidden sm:inline-flex items-center gap-1"
+              style={{ background: `${accentColor}18`, color: accentColor, border: `1px solid ${accentColor}30` }}
+              title="Currently executing lines"
+            >
+              <span className="inline-block h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: accentColor }} />
+              line {activeLines.join(", ")}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -176,22 +175,49 @@ export function PythonCodePanel({
         </div>
       </div>
 
-      {/* Code body */}
-      <div
-        className="overflow-auto flex-1"
-        style={{
-          maxHeight: variant === "panel" ? "560px" : "420px",
-        }}
-      >
+      {/* Code body — no max-height, no internal scrollbar on desktop.
+          On mobile, narrow lines may overflow horizontally; allow x-scroll only. */}
+      <div className="overflow-x-auto">
         <pre
-          className="py-code text-[12px] font-mono leading-relaxed px-4 py-3"
+          className="py-code text-[12px] font-mono leading-relaxed py-3"
           style={{
             color: "oklch(0.82 0.02 255)",
             whiteSpace: "pre",
             minWidth: "max-content",
+            margin: 0,
           }}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        >
+          {lines.map((html, i) => {
+            const lineNo = i + 1;
+            const isActive = activeSet.has(lineNo);
+            return (
+              <div
+                key={i}
+                className="flex"
+                style={{
+                  background: isActive ? `${accentColor}22` : "transparent",
+                  borderLeft: `3px solid ${isActive ? accentColor : "transparent"}`,
+                  transition: "background-color 120ms ease",
+                }}
+              >
+                <span
+                  className="select-none text-right pr-3 pl-2"
+                  style={{
+                    color: isActive ? accentColor : "oklch(0.35 0.03 255)",
+                    minWidth: "2.5rem",
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                >
+                  {lineNo}
+                </span>
+                <span
+                  className="flex-1 pr-4"
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              </div>
+            );
+          })}
+        </pre>
       </div>
     </div>
   );
