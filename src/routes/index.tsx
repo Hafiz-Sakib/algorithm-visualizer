@@ -2585,6 +2585,306 @@ function Timeline() {
   );
 }
 
+// ─── Interactive stats with count-up + hover detail ─────────────────────────
+function useCountUp(target: number, durationMs = 1400, start = false) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / durationMs);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(eased * target));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs, start]);
+  return value;
+}
+
+function StatCard({ s, inView }: { s: (typeof stats)[number]; inView: boolean }) {
+  const count = useCountUp(s.numeric ?? 0, 1400, inView);
+  const display = s.numeric != null ? `${count}${s.suffix ?? ""}` : s.value;
+  return (
+    <motion.div
+      variants={popIn}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 320, damping: 22 }}
+      className="relative group flex flex-col items-center text-center py-5 px-3 cursor-default overflow-hidden"
+      style={{ background: "oklch(0.10 0.02 265)" }}
+    >
+      <motion.div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle at 50% 0%, ${s.accent}22, transparent 65%)`,
+        }}
+      />
+      <motion.span
+        animate={{ rotate: [0, 8, -8, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        className="text-base mb-1"
+        style={{ color: s.accent, filter: `drop-shadow(0 0 6px ${s.accent}55)` }}
+      >
+        {s.icon}
+      </motion.span>
+      <span
+        className="text-2xl sm:text-3xl font-bold tracking-tight tabular-nums"
+        style={{ color: s.accent, letterSpacing: "-0.03em" }}
+      >
+        {display}
+      </span>
+      <span
+        className="text-[11px] uppercase tracking-widest mt-1 font-medium"
+        style={{ color: "oklch(0.65 0.04 255)" }}
+      >
+        {s.label}
+      </span>
+      <motion.span
+        initial={{ opacity: 0, height: 0 }}
+        whileHover={{ opacity: 1 }}
+        className="text-[10.5px] mt-2 leading-snug max-w-[180px]"
+        style={{ color: "oklch(0.55 0.04 255)" }}
+      >
+        {s.detail}
+      </motion.span>
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={inView ? { scaleX: 1 } : {}}
+        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+        className="absolute bottom-0 left-0 right-0 h-[2px] origin-left"
+        style={{ background: `linear-gradient(90deg, transparent, ${s.accent}, transparent)` }}
+      />
+    </motion.div>
+  );
+}
+
+function InteractiveStats() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setInView(true)),
+      { threshold: 0.3 },
+    );
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <motion.div
+      ref={ref}
+      variants={staggerParent}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.3 }}
+      className="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden relative"
+      style={{ background: "oklch(1 0 0 / 6%)", border: "1px solid oklch(1 0 0 / 8%)" }}
+    >
+      {stats.map((s) => (
+        <StatCard key={s.label} s={s} inView={inView} />
+      ))}
+    </motion.div>
+  );
+}
+
+// ─── Did You Know — rotating algorithm facts ────────────────────────────────
+const FACTS: { tag: string; title: string; body: string; accent: string }[] = [
+  {
+    tag: "Speed",
+    title: "Binary search beats linear search by 1,000,000×",
+    body: "On a sorted list of 1B items, linear search takes ~1B steps. Binary search takes ~30. That's the power of O(log n).",
+    accent: "oklch(0.72 0.19 255)",
+  },
+  {
+    tag: "Origin",
+    title: "Dijkstra invented his algorithm in 20 minutes",
+    body: "In 1956, while shopping with his fiancée in Amsterdam, Edsger Dijkstra designed shortest paths over coffee. He published it 3 years later.",
+    accent: "oklch(0.75 0.18 162)",
+  },
+  {
+    tag: "Recursion",
+    title: "Tower of Hanoi with 64 disks takes 585 billion years",
+    body: "At 1 move per second, the legendary 64-disk puzzle requires 2⁶⁴−1 moves — longer than the age of the universe.",
+    accent: "oklch(0.82 0.18 85)",
+  },
+  {
+    tag: "DP",
+    title: "Memoization can turn O(2ⁿ) into O(n)",
+    body: "Naive Fibonacci is exponential. Cache results once and the same algorithm becomes linear — same logic, just remembered.",
+    accent: "oklch(0.75 0.18 310)",
+  },
+  {
+    tag: "Strings",
+    title: "KMP never moves backward in the text",
+    body: "Knuth–Morris–Pratt achieves O(n+m) substring search by precomputing a failure table — the text pointer only ever advances.",
+    accent: "oklch(0.68 0.22 22)",
+  },
+  {
+    tag: "Sorting",
+    title: "Quicksort's worst case is its best case in disguise",
+    body: "Quicksort averages O(n log n) but degrades to O(n²) on sorted input — until you pick a random pivot. Randomness fixes it.",
+    accent: "oklch(0.72 0.22 180)",
+  },
+];
+
+function DidYouKnow() {
+  const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(() => setI((p) => (p + 1) % FACTS.length), 5000);
+    return () => clearInterval(id);
+  }, [paused]);
+  const fact = FACTS[i];
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.6 }}
+      className="space-y-4"
+    >
+      <header>
+        <h2
+          className="text-xl sm:text-2xl font-bold tracking-tight"
+          style={{ letterSpacing: "-0.025em" }}
+        >
+          Did you know?
+        </h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
+          Six surprising facts about the algorithms you use every day.
+        </p>
+      </header>
+      <div
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        className="relative rounded-2xl p-6 sm:p-8 overflow-hidden min-h-[210px]"
+        style={{
+          background: "linear-gradient(135deg, oklch(0.11 0.03 265), oklch(0.09 0.02 265))",
+          border: "1px solid oklch(1 0 0 / 10%)",
+        }}
+      >
+        <motion.div
+          key={`bg-${i}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.35 }}
+          transition={{ duration: 1.2 }}
+          className="absolute -top-20 -right-20 w-72 h-72 rounded-full blur-3xl pointer-events-none"
+          style={{ background: fact.accent }}
+        />
+        <motion.div
+          animate={{ rotate: [0, 360] }}
+          transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+          className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full opacity-15 pointer-events-none"
+          style={{
+            background: `conic-gradient(from 0deg, transparent, ${fact.accent}, transparent 60%)`,
+          }}
+        />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -16, filter: "blur(6px)" }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10"
+          >
+            <span
+              className="inline-block text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full mb-3"
+              style={{
+                background: `${fact.accent}1f`,
+                color: fact.accent,
+                border: `1px solid ${fact.accent}44`,
+              }}
+            >
+              {fact.tag}
+            </span>
+            <h3
+              className="text-lg sm:text-2xl font-bold tracking-tight mb-2"
+              style={{ color: "oklch(0.95 0.01 255)", letterSpacing: "-0.02em" }}
+            >
+              {fact.title}
+            </h3>
+            <p
+              className="text-sm sm:text-[15px] leading-relaxed max-w-2xl"
+              style={{ color: "oklch(0.68 0.03 255)" }}
+            >
+              {fact.body}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Controls */}
+        <div className="relative z-10 mt-5 flex items-center gap-3 flex-wrap">
+          <div className="flex gap-1.5">
+            {FACTS.map((f, idx) => (
+              <button
+                key={f.title}
+                aria-label={`Show fact ${idx + 1}`}
+                onClick={() => setI(idx)}
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: idx === i ? 28 : 10,
+                  background: idx === i ? f.accent : "oklch(1 0 0 / 18%)",
+                  boxShadow: idx === i ? `0 0 8px ${f.accent}88` : "none",
+                }}
+              />
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <motion.button
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => setI((p) => (p - 1 + FACTS.length) % FACTS.length)}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
+              style={{
+                background: "oklch(1 0 0 / 6%)",
+                color: "oklch(0.80 0.02 255)",
+                border: "1px solid oklch(1 0 0 / 10%)",
+              }}
+            >
+              ‹
+            </motion.button>
+            <span
+              className="text-[11px] font-mono tabular-nums"
+              style={{ color: "oklch(0.50 0.04 255)" }}
+            >
+              {String(i + 1).padStart(2, "0")} / {String(FACTS.length).padStart(2, "0")}
+            </span>
+            <motion.button
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => setI((p) => (p + 1) % FACTS.length)}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
+              style={{
+                background: "oklch(1 0 0 / 6%)",
+                color: "oklch(0.80 0.02 255)",
+                border: "1px solid oklch(1 0 0 / 10%)",
+              }}
+            >
+              ›
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Auto-progress bar */}
+        <motion.div
+          key={`bar-${i}-${paused ? "p" : "r"}`}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: paused ? 0 : 1 }}
+          transition={{ duration: paused ? 0 : 5, ease: "linear" }}
+          className="absolute bottom-0 left-0 right-0 h-[2px] origin-left"
+          style={{ background: `linear-gradient(90deg, ${fact.accent}, transparent)` }}
+        />
+      </div>
+    </motion.section>
+  );
+}
+
+
+
 // ─── Original data ─────────────────────────────────────────────────────────
 const cards = [
   {
@@ -2679,11 +2979,48 @@ const cards = [
   },
 ] as const;
 
-const stats = [
-  { value: "60+", label: "Algorithms" },
-  { value: "10", label: "Categories" },
-  { value: "60fps", label: "Animations" },
-  { value: "⌘", label: "C++ Code" },
+const stats: {
+  value: string;
+  label: string;
+  detail: string;
+  numeric?: number;
+  suffix?: string;
+  icon: string;
+  accent: string;
+}[] = [
+  {
+    value: "60+",
+    numeric: 60,
+    suffix: "+",
+    label: "Algorithms",
+    detail: "From bubble sort to A* — every classic, step-by-step.",
+    icon: "◇",
+    accent: "oklch(0.72 0.19 255)",
+  },
+  {
+    value: "10",
+    numeric: 10,
+    label: "Categories",
+    detail: "Sorting, Searching, Graphs, DP, Strings, Trees & more.",
+    icon: "⬡",
+    accent: "oklch(0.75 0.18 162)",
+  },
+  {
+    value: "60fps",
+    numeric: 60,
+    suffix: "fps",
+    label: "Animations",
+    detail: "Buttery smooth playback powered by Framer Motion.",
+    icon: "◉",
+    accent: "oklch(0.82 0.18 85)",
+  },
+  {
+    value: "⌘",
+    label: "C++ Code",
+    detail: "Idiomatic C++ STL paired with synced line highlights.",
+    icon: "⌘",
+    accent: "oklch(0.75 0.18 310)",
+  },
 ];
 
 const features = [
@@ -2966,35 +3303,9 @@ function Index() {
         </motion.div>
       </motion.section>
 
-      {/* Stats */}
-      <motion.div
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.4 }}
-        className="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden"
-        style={{ background: "oklch(1 0 0 / 6%)", border: "1px solid oklch(1 0 0 / 8%)" }}
-      >
-        {stats.map((s) => (
-          <motion.div
-            key={s.label}
-            variants={popIn}
-            whileHover={{ scale: 1.04 }}
-            className="flex flex-col items-center py-4 px-3 cursor-default"
-            style={{ background: "oklch(0.10 0.02 265)" }}
-          >
-            <span
-              className="text-2xl font-bold tracking-tight"
-              style={{ color: "oklch(0.72 0.19 255)", letterSpacing: "-0.03em" }}
-            >
-              {s.value}
-            </span>
-            <span className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.04 255)" }}>
-              {s.label}
-            </span>
-          </motion.div>
-        ))}
-      </motion.div>
+      {/* Stats — interactive */}
+      <InteractiveStats />
+
 
       {/* Algorithm DNA */}
       <AlgoDNA />
@@ -3299,6 +3610,9 @@ function Index() {
 
       {/* New animated section #5 */}
       <Timeline />
+
+      {/* New animated section #6 — Did You Know rotating facts */}
+      <DidYouKnow />
 
       {/* CTA */}
       <motion.section

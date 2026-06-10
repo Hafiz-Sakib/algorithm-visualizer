@@ -244,19 +244,19 @@ export const SAMPLE_GRAPHS: Record<string, Graph> = {
       { id: 9, label: "J", x: 195, y: 200 }, { id:10, label: "K", x: 265, y: 200 },
       { id:11, label: "L", x: 355, y: 200 }, { id:12, label: "M", x: 425, y: 200 },
       { id:13, label: "N", x: 505, y: 200 }, { id:14, label: "O", x: 575, y: 200 },
-      // Level 4 (leaves) — only under leftmost branch to keep readable
-      { id:15, label: "P", x: 30,  y: 270 }, { id:16, label: "Q", x: 60,  y: 270 },
-      { id:17, label: "R", x: 100, y: 270 }, { id:18, label: "S", x: 130, y: 270 },
-      { id:19, label: "T", x: 180, y: 270 }, { id:20, label: "U", x: 210, y: 270 },
-      { id:21, label: "V", x: 250, y: 270 }, { id:22, label: "W", x: 280, y: 270 },
+      // Level 4 (leaves) — one leaf under each level-3 node, spread across full width
+      { id:15, label: "P", x: 45,  y: 278 }, { id:16, label: "Q", x: 115, y: 278 },
+      { id:17, label: "R", x: 195, y: 278 }, { id:18, label: "S", x: 265, y: 278 },
+      { id:19, label: "T", x: 355, y: 278 }, { id:20, label: "U", x: 425, y: 278 },
+      { id:21, label: "V", x: 505, y: 278 }, { id:22, label: "W", x: 575, y: 278 },
     ],
     edges: [
       { from:0, to:1 }, { from:0, to:2 },
       { from:1, to:3 }, { from:1, to:4 }, { from:2, to:5 }, { from:2, to:6 },
       { from:3, to:7 }, { from:3, to:8 }, { from:4, to:9 }, { from:4, to:10 },
       { from:5, to:11 }, { from:5, to:12 }, { from:6, to:13 }, { from:6, to:14 },
-      { from:7, to:15 }, { from:7, to:16 }, { from:8, to:17 }, { from:8, to:18 },
-      { from:9, to:19 }, { from:9, to:20 }, { from:10, to:21 }, { from:10, to:22 },
+      { from:7, to:15 }, { from:8, to:16 }, { from:9, to:17 }, { from:10, to:18 },
+      { from:11, to:19 }, { from:12, to:20 }, { from:13, to:21 }, { from:14, to:22 },
     ],
   },
   "Simple (6 nodes)": {
