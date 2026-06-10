@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Controls } from "../components/viz/Controls";
 import { PythonCodePanel } from "../components/PythonCodePanel";
 import { inferLines } from "../lib/algorithms/lineMaps";
@@ -29,7 +29,12 @@ const W = 620, H = 310;
 function GraphPage() {
   const [algo, setAlgo] = useState<GraphAlgoName>("BFS");
   const [speed, setSpeed] = useState(60);
-  const [graphKey, setGraphKey] = useState("Simple (6 nodes)");
+  const [graphKey, setGraphKey] = useState("Tree (5 levels)");
+  useEffect(() => {
+    if (algo === "BFS" || algo === "DFS") setGraphKey("Tree (5 levels)");
+    else if (graphKey === "Tree (5 levels)") setGraphKey("Simple (6 nodes)");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [algo]);
   const graph: Graph = SAMPLE_GRAPHS[graphKey];
 
   const gen = useCallback(() => GRAPH_ALGOS[algo](graph as any), [algo, graph]);

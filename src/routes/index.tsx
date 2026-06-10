@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, useScroll, useTransform, AnimatePresence, type Variants } from "framer-motion";
 import { useRef, useEffect, useState, useMemo } from "react";
 import * as THREE from "three";
-import { GraphTraversal3D } from "../components/GraphTraversal3D";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -3102,8 +3101,6 @@ function Index() {
       {/* A* Pathfinding Three.js */}
       <AStarScene />
 
-      {/* 3D BFS / DFS traversal */}
-      <GraphTraversal3D />
 
 
       {/* Features */}

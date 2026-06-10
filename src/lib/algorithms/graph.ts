@@ -230,6 +230,35 @@ export type GraphAlgoName = keyof typeof GRAPH_ALGOS;
 
 // Sample graphs
 export const SAMPLE_GRAPHS: Record<string, Graph> = {
+  "Tree (5 levels)": {
+    nodes: [
+      // Level 0
+      { id: 0, label: "A", x: 310, y: 22 },
+      // Level 1
+      { id: 1, label: "B", x: 155, y: 78 }, { id: 2, label: "C", x: 465, y: 78 },
+      // Level 2
+      { id: 3, label: "D", x: 80,  y: 138 }, { id: 4, label: "E", x: 230, y: 138 },
+      { id: 5, label: "F", x: 390, y: 138 }, { id: 6, label: "G", x: 540, y: 138 },
+      // Level 3
+      { id: 7, label: "H", x: 45,  y: 200 }, { id: 8, label: "I", x: 115, y: 200 },
+      { id: 9, label: "J", x: 195, y: 200 }, { id:10, label: "K", x: 265, y: 200 },
+      { id:11, label: "L", x: 355, y: 200 }, { id:12, label: "M", x: 425, y: 200 },
+      { id:13, label: "N", x: 505, y: 200 }, { id:14, label: "O", x: 575, y: 200 },
+      // Level 4 (leaves) — only under leftmost branch to keep readable
+      { id:15, label: "P", x: 30,  y: 270 }, { id:16, label: "Q", x: 60,  y: 270 },
+      { id:17, label: "R", x: 100, y: 270 }, { id:18, label: "S", x: 130, y: 270 },
+      { id:19, label: "T", x: 180, y: 270 }, { id:20, label: "U", x: 210, y: 270 },
+      { id:21, label: "V", x: 250, y: 270 }, { id:22, label: "W", x: 280, y: 270 },
+    ],
+    edges: [
+      { from:0, to:1 }, { from:0, to:2 },
+      { from:1, to:3 }, { from:1, to:4 }, { from:2, to:5 }, { from:2, to:6 },
+      { from:3, to:7 }, { from:3, to:8 }, { from:4, to:9 }, { from:4, to:10 },
+      { from:5, to:11 }, { from:5, to:12 }, { from:6, to:13 }, { from:6, to:14 },
+      { from:7, to:15 }, { from:7, to:16 }, { from:8, to:17 }, { from:8, to:18 },
+      { from:9, to:19 }, { from:9, to:20 }, { from:10, to:21 }, { from:10, to:22 },
+    ],
+  },
   "Simple (6 nodes)": {
     nodes: [
       { id: 0, label: "A", x: 150, y: 80 }, { id: 1, label: "B", x: 300, y: 50 },
