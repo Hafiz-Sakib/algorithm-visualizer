@@ -292,7 +292,11 @@ function RootComponent() {
                   background: "linear-gradient(135deg, oklch(0.72 0.19 255), oklch(0.75 0.18 162))",
                 }}
               >
-                <span className="text-[9px] font-bold text-white">AV</span>
+                <img
+                  src="/icon-512.png"
+                  alt="AlgoViz"
+                  className="h-5 w-5 rounded-md object-contain select-none"
+                />
               </div>
               <span>AlgoViz · built for learning</span>
             </div>
