@@ -22,7 +22,7 @@
 
 <!-- Replace the src below with your actual screenshot path once captured -->
 
-![AlgoViz Homepage](./public/algo-visualizer.png)
+![AlgoViz Homepage](./public/algo-visualizer_home.png)
 
 > _Screenshot of the homepage with Three.js 3D hero animation, algorithm cards, and dark premium UI._
 
