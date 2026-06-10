@@ -20,6 +20,7 @@ import { Route as KnightsRouteImport } from './routes/knights'
 import { Route as HanoiRouteImport } from './routes/hanoi'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as DpRouteImport } from './routes/dp'
+import { Route as DeveloperRouteImport } from './routes/developer'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TreeRoute = TreeRouteImport.update({
@@ -77,6 +78,11 @@ const DpRoute = DpRouteImport.update({
   path: '/dp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeveloperRoute = DeveloperRouteImport.update({
+  id: '/developer',
+  path: '/developer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -85,6 +91,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
@@ -114,6 +122,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/developer'
     | '/dp'
     | '/graph'
     | '/hanoi'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/developer'
     | '/dp'
     | '/graph'
     | '/hanoi'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/developer'
     | '/dp'
     | '/graph'
     | '/hanoi'
@@ -173,6 +185,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DeveloperRoute: typeof DeveloperRoute
   DpRoute: typeof DpRoute
   GraphRoute: typeof GraphRoute
   HanoiRoute: typeof HanoiRoute
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/developer': {
+      id: '/developer'
+      path: '/developer'
+      fullPath: '/developer'
+      preLoaderRoute: typeof DeveloperRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -277,6 +297,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DeveloperRoute: DeveloperRoute,
   DpRoute: DpRoute,
   GraphRoute: GraphRoute,
   HanoiRoute: HanoiRoute,
