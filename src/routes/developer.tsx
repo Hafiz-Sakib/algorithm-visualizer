@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, type Variants } from "framer-motion";
 import { BD } from "country-flag-icons/react/3x2";
+import { BarChart3, Map, GitBranch } from "lucide-react";
 import developerImage from "../../public/dev.png";
 
 export const Route = createFileRoute("/developer")({
@@ -38,7 +39,7 @@ const PROJECTS = [
     desc: "Scientific visualization platform — 2D/3D plotting, complex analysis, activation functions, parametric curves.",
     tech: ["React", "Three.js", "Math.js"],
     accent: "#22d3ee",
-    emoji: "📊",
+    icon: "BarChart3", // Lucide icon
     link: "https://nova-mathplot.vercel.app/",
     github: "https://github.com/Hafiz-Sakib/nova-mathplot",
   },
@@ -47,7 +48,7 @@ const PROJECTS = [
     desc: "Location-based travel guide app — interactive maps and point-of-interest discovery.",
     tech: ["React", "Maps API", "Firebase"],
     accent: "#4ade80",
-    emoji: "🗺️",
+    icon: "Map", // Lucide icon
     link: "https://sababa-tours.vercel.app/",
     github: "https://github.com/Hafiz-Sakib/Sababa-Tours",
   },
@@ -56,7 +57,7 @@ const PROJECTS = [
     desc: "Actively contributing to open source projects. Solving competitive programming problems on multiple online judges.",
     tech: ["C++", "Python", "Algorithms"],
     accent: "#c084fc",
-    emoji: "⚡",
+    icon: "GitBranch", // Lucide icon
     link: "https://hafizsakib.vercel.app/",
     github: "https://github.com/Hafiz-Sakib",
   },
@@ -410,7 +411,9 @@ function DeveloperPage() {
                   className="w-8 h-8 text-base flex items-center justify-center rounded-lg shrink-0"
                   style={{ background: `${p.accent}14`, border: `1px solid ${p.accent}25` }}
                 >
-                  {p.emoji}
+                  {p.icon === "BarChart3" && <BarChart3 size={20} strokeWidth={2.5} />}
+                  {p.icon === "Map" && <Map size={20} strokeWidth={2.5} />}
+                  {p.icon === "GitBranch" && <GitBranch size={20} strokeWidth={2.5} />}
                 </span>
                 <h3 className="font-bold text-sm" style={{ color: p.accent }}>
                   {p.name}
