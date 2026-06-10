@@ -88,11 +88,21 @@ function genBinarySearchSteps(sorted: number[], target: number): SearchStep[] {
 }
 
 const BAR_COUNT = 16;
+const BS_COUNT = 14; // binary search array size
 
 function ThreeScene() {
   const mountRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<HeroMode>("Quick Sort");
   const [shuffleKey, setShuffleKey] = useState(0);
+  // overlay state for binary search info
+  const [bsInfo, setBsInfo] = useState<{
+    lo: number;
+    hi: number;
+    mid: number;
+    target: number;
+    found: boolean;
+    miss: boolean;
+  }>({ lo: 0, hi: BS_COUNT - 1, mid: -1, target: 0, found: false, miss: false });
 
   useEffect(() => {
     const el = mountRef.current;
@@ -102,7 +112,7 @@ function ThreeScene() {
     const H = el.clientHeight || 1;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(new THREE.Color("#05060d"), 9, 18);
+    scene.fog = new THREE.Fog(new THREE.Color("#05060d"), 9, 22);
 
     const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
     camera.position.set(0, 1.4, 7.6);
@@ -158,7 +168,16 @@ function ThreeScene() {
     const particles = new THREE.Points(pGeo, pMat);
     world.add(particles);
 
-    // ── Bars ──
+    const C_COMPARE = new THREE.Color("#ffd34d");
+    const C_SWAP = new THREE.Color("#ff6b5e");
+    const C_SORTED = new THREE.Color("#3ddc97");
+    const C_HOVER = new THREE.Color("#ffffff");
+    const C_RANGE = new THREE.Color("#5a7cff");
+    const C_PROBE = new THREE.Color("#ffd34d");
+    const C_FOUND = new THREE.Color("#3ddc97");
+    const C_DIM = new THREE.Color("#1a2240");
+
+    // ── SORT MODE: Bars ──
     const SPACING = 0.46;
     const X0 = -((BAR_COUNT - 1) * SPACING) / 2;
     const xAt = (slot: number) => X0 + slot * SPACING;
@@ -166,13 +185,11 @@ function ThreeScene() {
 
     const initialValues = Array.from({ length: BAR_COUNT }, (_, i) => (i + 1) / BAR_COUNT);
     if (mode === "Quick Sort") {
-      // shuffle for sort
       for (let i = initialValues.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [initialValues[i], initialValues[j]] = [initialValues[j], initialValues[i]];
       }
     }
-    // Binary Search keeps the array sorted ascending
 
     interface Bar {
       mesh: THREE.Mesh;
@@ -186,18 +203,12 @@ function ThreeScene() {
       c.setHSL(0.62 - v * 0.13, 0.75, 0.42 + v * 0.18);
       return c;
     };
-    const C_COMPARE = new THREE.Color("#ffd34d");
-    const C_SWAP = new THREE.Color("#ff6b5e");
-    const C_SORTED = new THREE.Color("#3ddc97");
-    const C_HOVER = new THREE.Color("#ffffff");
-    const C_RANGE = new THREE.Color("#5a7cff");
-    const C_PROBE = new THREE.Color("#ffd34d");
-    const C_FOUND = new THREE.Color("#3ddc97");
-    const C_DIM = new THREE.Color("#2a3550");
 
     const bars: Bar[] = [];
     const slotToBar: Bar[] = [];
     const barGeo = new THREE.BoxGeometry(0.32, 1, 0.32);
+    const barGroup = new THREE.Group();
+    world.add(barGroup);
 
     for (let i = 0; i < BAR_COUNT; i++) {
       const mat = new THREE.MeshStandardMaterial({
@@ -211,26 +222,114 @@ function ThreeScene() {
       const h = hOf(initialValues[i]);
       mesh.scale.y = h;
       mesh.position.set(xAt(i), h / 2 - 1.6, 0);
-      world.add(mesh);
+      barGroup.add(mesh);
       const bar: Bar = { mesh, mat, value: initialValues[i], slot: i, sorted: false };
       bars.push(bar);
       slotToBar[i] = bar;
     }
+
+    // ── BINARY SEARCH MODE: Tiles ──
+    // Each tile is a flat box. Values 1..BS_COUNT sorted. Target chosen randomly.
+    const BS_SPACING = 0.58;
+    const BS_X0 = -((BS_COUNT - 1) * BS_SPACING) / 2;
+    const bsXAt = (idx: number) => BS_X0 + idx * BS_SPACING;
+    const bsValues = Array.from({ length: BS_COUNT }, (_, i) => i + 1); // sorted 1..14
+
+    interface BSTile {
+      mesh: THREE.Mesh;
+      mat: THREE.MeshStandardMaterial;
+      value: number;
+      idx: number;
+    }
+    const bsTiles: BSTile[] = [];
+    const tileGeo = new THREE.BoxGeometry(0.48, 0.48, 0.14);
+    const tileGroup = new THREE.Group();
+    world.add(tileGroup);
+
+    for (let i = 0; i < BS_COUNT; i++) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color("#1e2d52"),
+        emissive: new THREE.Color("#1e2d52"),
+        emissiveIntensity: 0.3,
+        roughness: 0.3,
+        metalness: 0.55,
+      });
+      const mesh = new THREE.Mesh(tileGeo, mat);
+      mesh.position.set(bsXAt(i), -0.3, 0);
+      tileGroup.add(mesh);
+      bsTiles.push({ mesh, mat, value: bsValues[i], idx: i });
+    }
+
+    // Mid-pointer: a glowing diamond/tetrahedron floating above mid
+    const pointerGeo = new THREE.OctahedronGeometry(0.15, 0);
+    const pointerMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#ffd34d"),
+      emissive: new THREE.Color("#ffd34d"),
+      emissiveIntensity: 1.2,
+      roughness: 0.2,
+      metalness: 0.4,
+    });
+    const midPointer = new THREE.Mesh(pointerGeo, pointerMat);
+    midPointer.position.set(0, 0.55, 0);
+    midPointer.visible = false;
+    tileGroup.add(midPointer);
+
+    // Lo bracket: thin vertical slab on left
+    const bracketGeo = new THREE.BoxGeometry(0.06, 0.7, 0.06);
+    const loBracketMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#5a7cff"),
+      emissive: new THREE.Color("#5a7cff"),
+      emissiveIntensity: 0.8,
+      roughness: 0.3,
+      metalness: 0.3,
+    });
+    const hiBracketMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#5a7cff"),
+      emissive: new THREE.Color("#5a7cff"),
+      emissiveIntensity: 0.8,
+      roughness: 0.3,
+      metalness: 0.3,
+    });
+    const loBracket = new THREE.Mesh(bracketGeo, loBracketMat);
+    const hiBracket = new THREE.Mesh(bracketGeo, hiBracketMat);
+    loBracket.position.set(BS_X0 - 0.3, -0.3, 0.2);
+    hiBracket.position.set(-BS_X0 + 0.3, -0.3, 0.2);
+    tileGroup.add(loBracket);
+    tileGroup.add(hiBracket);
+
+    // Target label ring: torus ring floating top-right
+    const ringGeo = new THREE.TorusGeometry(0.18, 0.04, 8, 24);
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#3ddc97"),
+      emissive: new THREE.Color("#3ddc97"),
+      emissiveIntensity: 0.9,
+      roughness: 0.2,
+      metalness: 0.5,
+    });
+    const targetRing = new THREE.Mesh(ringGeo, ringMat);
+    targetRing.position.set(0, 0.55, 0);
+    targetRing.visible = false;
+    tileGroup.add(targetRing);
+
+    // Visibility by mode
+    barGroup.visible = mode === "Quick Sort";
+    tileGroup.visible = mode === "Binary Search";
 
     // ── Playback state ──
     let sortSteps: SortStep[] = [];
     let searchSteps: SearchStep[] = [];
     let stepIdx = 0;
     let frame = 0;
-    let framesPerStep = 18; // SLOWER default
+    let framesPerStep = 18;
     let cooldown = 0;
     let comparing: [Bar, Bar] | null = null;
-    // search state
     let searchLo = 0,
-      searchHi = BAR_COUNT - 1;
+      searchHi = BS_COUNT - 1;
     let searchProbe = -1;
     let searchFound = -1;
+    let searchMiss = false;
     let searchTargetValue = 0;
+    let targetBsIdx = 0; // index of target in bsValues
 
     interface SwapTween {
       a: Bar;
@@ -267,16 +366,40 @@ function ThreeScene() {
       if (mode === "Quick Sort") {
         sortSteps = genQuickSteps(vals);
         searchSteps = [];
+        barGroup.visible = true;
+        tileGroup.visible = false;
       } else {
-        // pick a random element to find
-        const idx = Math.floor(Math.random() * vals.length);
-        searchTargetValue = vals[idx];
-        searchSteps = genBinarySearchSteps(vals, searchTargetValue);
+        // binary search setup
+        barGroup.visible = false;
+        tileGroup.visible = true;
+        targetBsIdx = Math.floor(Math.random() * BS_COUNT);
+        searchTargetValue = bsValues[targetBsIdx];
+        searchSteps = genBinarySearchSteps(bsValues, searchTargetValue);
         sortSteps = [];
         searchLo = 0;
-        searchHi = BAR_COUNT - 1;
+        searchHi = BS_COUNT - 1;
         searchProbe = -1;
         searchFound = -1;
+        searchMiss = false;
+        midPointer.visible = false;
+        targetRing.visible = false;
+        // reset tile colors
+        bsTiles.forEach((t) => {
+          t.mat.color.set("#1e2d52");
+          t.mat.emissive.set("#1e2d52");
+          t.mat.emissiveIntensity = 0.3;
+          t.mesh.position.y = -0.3;
+        });
+        loBracket.position.x = bsXAt(0) - 0.3;
+        hiBracket.position.x = bsXAt(BS_COUNT - 1) + 0.3;
+        setBsInfo({
+          lo: 0,
+          hi: BS_COUNT - 1,
+          mid: -1,
+          target: searchTargetValue,
+          found: false,
+          miss: false,
+        });
       }
     }
     rebuild();
@@ -304,13 +427,28 @@ function ThreeScene() {
         searchLo = s.lo;
         searchHi = s.hi;
         searchProbe = -1;
+        loBracket.position.x = bsXAt(s.lo) - 0.3;
+        hiBracket.position.x = bsXAt(s.hi) + 0.3;
+        midPointer.visible = false;
+        setBsInfo((prev) => ({ ...prev, lo: s.lo, hi: s.hi, mid: -1 }));
       } else if (s.type === "probe") {
         searchProbe = s.mid;
+        midPointer.position.x = bsXAt(s.mid);
+        midPointer.visible = true;
+        setBsInfo((prev) => ({ ...prev, mid: s.mid }));
       } else if (s.type === "found") {
         searchFound = s.mid;
         searchProbe = s.mid;
+        midPointer.position.x = bsXAt(s.mid);
+        midPointer.visible = true;
+        targetRing.position.x = bsXAt(s.mid);
+        targetRing.visible = true;
+        setBsInfo((prev) => ({ ...prev, found: true, mid: s.mid }));
       } else {
+        searchMiss = true;
         searchProbe = -1;
+        midPointer.visible = false;
+        setBsInfo((prev) => ({ ...prev, miss: true }));
       }
     }
 
@@ -318,7 +456,7 @@ function ThreeScene() {
     const raycaster = new THREE.Raycaster();
     const pointerNDC = new THREE.Vector2(-10, -10);
     let hovered: Bar | null = null;
-
+    let hoveredTile: BSTile | null = null;
     let dragging = false,
       moved = 0,
       lastX = 0,
@@ -388,10 +526,10 @@ function ThreeScene() {
           }
         } else {
           if (stepIdx < searchSteps.length) {
-            framesPerStep = 26; // slow & cinematic
+            framesPerStep = 34;
             applySearchStep(searchSteps[stepIdx++]);
           } else if (searchSteps.length > 0) {
-            cooldown = 180;
+            cooldown = 200;
             searchSteps = [];
             stepIdx = 0;
           } else {
@@ -400,14 +538,14 @@ function ThreeScene() {
         }
       }
 
-      // tweens
+      // swap tweens
       for (let k = tweens.length - 1; k >= 0; k--) {
         const tw = tweens[k];
-        tw.t = Math.min(1, tw.t + 0.045); // slower
-        const e = 0.5 - 0.5 * Math.cos(Math.PI * tw.t);
+        tw.t = Math.min(1, tw.t + 0.045);
+        const e2 = 0.5 - 0.5 * Math.cos(Math.PI * tw.t);
         const lift = Math.sin(Math.PI * tw.t) * 0.55;
-        tw.a.mesh.position.x = THREE.MathUtils.lerp(tw.fromA, xAt(tw.a.slot), e);
-        tw.b.mesh.position.x = THREE.MathUtils.lerp(tw.fromB, xAt(tw.b.slot), e);
+        tw.a.mesh.position.x = THREE.MathUtils.lerp(tw.fromA, xAt(tw.a.slot), e2);
+        tw.b.mesh.position.x = THREE.MathUtils.lerp(tw.fromB, xAt(tw.b.slot), e2);
         tw.a.mesh.position.z = lift;
         tw.b.mesh.position.z = -lift;
         if (tw.t >= 1) {
@@ -418,16 +556,16 @@ function ThreeScene() {
       }
 
       raycaster.setFromCamera(pointerNDC, camera);
-      const hits = raycaster.intersectObjects(
-        bars.map((b) => b.mesh),
-        false,
-      );
-      hovered = hits.length ? (bars.find((b) => b.mesh === hits[0].object) ?? null) : null;
 
-      for (const b of bars) {
-        let target: THREE.Color;
-        let glow = 0.18;
-        if (mode === "Quick Sort") {
+      if (mode === "Quick Sort") {
+        const hits = raycaster.intersectObjects(
+          bars.map((b) => b.mesh),
+          false,
+        );
+        hovered = hits.length ? (bars.find((b) => b.mesh === hits[0].object) ?? null) : null;
+        for (const b of bars) {
+          let target: THREE.Color;
+          let glow = 0.18;
           const inTween = tweens.some((tw) => tw.a === b || tw.b === b);
           const isCmp = comparing !== null && (comparing[0] === b || comparing[1] === b);
           if (b === hovered) {
@@ -445,49 +583,80 @@ function ThreeScene() {
           } else {
             target = baseColor(b.value);
           }
-        } else {
-          // Binary Search highlighting based on slot index
-          const slot = b.slot;
-          const inRange = slot >= searchLo && slot <= searchHi;
-          const isProbe = slot === searchProbe;
-          const isFound = slot === searchFound;
+          b.mat.color.lerp(target, 0.22);
+          b.mat.emissive.lerp(target, 0.22);
+          b.mat.emissiveIntensity += (glow - b.mat.emissiveIntensity) * 0.18;
+          const hs = hOf(b.value) * (b === hovered ? 1.04 : 1);
+          b.mesh.scale.y += (hs - b.mesh.scale.y) * 0.22;
+          b.mesh.position.y = b.mesh.scale.y / 2 - 1.6;
+        }
+      } else {
+        // Binary Search tile coloring
+        const hits2 = raycaster.intersectObjects(
+          bsTiles.map((t) => t.mesh),
+          false,
+        );
+        hoveredTile = hits2.length
+          ? (bsTiles.find((t) => t.mesh === hits2[0].object) ?? null)
+          : null;
+        for (const t of bsTiles) {
+          let target: THREE.Color;
+          let glow = 0.3;
+          let targetY = -0.3;
+          const isFound = t.idx === searchFound;
+          const isProbe = t.idx === searchProbe;
+          const inRange = t.idx >= searchLo && t.idx <= searchHi;
+          const isTarget = t.idx === targetBsIdx;
           if (isFound) {
             target = C_FOUND;
-            glow = 1.1;
+            glow = 1.4;
+            targetY = 0.15;
           } else if (isProbe) {
             target = C_PROBE;
-            glow = 1.0;
-          } else if (b === hovered) {
+            glow = 1.2;
+            targetY = 0.08;
+          } else if (t === hoveredTile) {
             target = C_HOVER;
+            glow = 0.7;
+          } else if (isTarget && inRange) {
+            target = new THREE.Color("#a0d8ff");
             glow = 0.6;
           } else if (inRange) {
             target = C_RANGE;
-            glow = 0.45;
+            glow = 0.55;
           } else {
             target = C_DIM;
-            glow = 0.05;
+            glow = 0.1;
           }
+          t.mat.color.lerp(target, 0.2);
+          t.mat.emissive.lerp(target, 0.2);
+          t.mat.emissiveIntensity += (glow - t.mat.emissiveIntensity) * 0.15;
+          t.mesh.position.y += (targetY - t.mesh.position.y) * 0.15;
+          // scale pulse for probe
+          const targetScale = isProbe ? 1.18 : isFound ? 1.25 : 1.0;
+          t.mesh.scale.x += (targetScale - t.mesh.scale.x) * 0.15;
+          t.mesh.scale.y += (targetScale - t.mesh.scale.y) * 0.15;
         }
-        b.mat.color.lerp(target, 0.22);
-        b.mat.emissive.lerp(target, 0.22);
-        b.mat.emissiveIntensity += (glow - b.mat.emissiveIntensity) * 0.18;
-        const hs =
-          hOf(b.value) *
-          (b === hovered ? 1.04 : 1) *
-          (mode === "Binary Search" && b.slot === searchProbe ? 1.12 : 1);
-        b.mesh.scale.y += (hs - b.mesh.scale.y) * 0.22;
-        b.mesh.position.y = b.mesh.scale.y / 2 - 1.6;
+        // mid-pointer bob
+        if (midPointer.visible) midPointer.position.y = 0.55 + Math.sin(frame * 0.08) * 0.06;
+        // target ring spin
+        if (targetRing.visible) {
+          targetRing.rotation.y = frame * 0.05;
+          targetRing.rotation.z = frame * 0.03;
+        }
+        // bracket glow pulse
+        const bracketGlow = 0.5 + 0.3 * Math.sin(frame * 0.04);
+        loBracketMat.emissiveIntensity = bracketGlow;
+        hiBracketMat.emissiveIntensity = bracketGlow;
       }
 
       particles.rotation.y = frame * 0.0006;
-
       const idle = dragging ? 0 : Math.sin(frame * 0.0035) * 0.07;
       world.rotation.y += (targetYaw + idle - world.rotation.y) * 0.07;
       world.rotation.x += (targetPitch - world.rotation.x) * 0.07;
       camera.position.x +=
         (pointerNDC.x === -10 ? 0 : pointerNDC.x * 0.35 - camera.position.x) * 0.03;
       camera.lookAt(0, -0.1, 0);
-
       renderer.render(scene, camera);
     }
     animate();
@@ -509,9 +678,18 @@ function ThreeScene() {
       dom.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("pointerleave", onPointerLeave);
       barGeo.dispose();
+      tileGeo.dispose();
+      bracketGeo.dispose();
+      pointerGeo.dispose();
+      ringGeo.dispose();
       pGeo.dispose();
       pMat.dispose();
+      pointerMat.dispose();
+      loBracketMat.dispose();
+      hiBracketMat.dispose();
+      ringMat.dispose();
       bars.forEach((b) => b.mat.dispose());
+      bsTiles.forEach((t) => t.mat.dispose());
       renderer.dispose();
       if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
     };
@@ -548,11 +726,100 @@ function ThreeScene() {
           ⤨ Restart
         </button>
       </div>
-      <div
-        className="absolute top-12 left-0 right-0 text-center text-[10px] font-mono pointer-events-none z-10"
-        style={{ color: "oklch(0.45 0.04 255)" }}
-      >
-        drag to rotate · click to restart
+      {/* Binary Search HUD */}
+      {mode === "Binary Search" && (
+        <div className="absolute top-12 left-0 right-0 flex justify-center gap-3 pointer-events-none z-10">
+          <span
+            className="px-2 py-0.5 rounded-md text-[10px] font-mono"
+            style={{
+              background: "oklch(0.06 0.02 265 / 85%)",
+              color: "#5a7cff",
+              border: "1px solid #5a7cff40",
+            }}
+          >
+            lo={bsInfo.lo}
+          </span>
+          {bsInfo.mid >= 0 && (
+            <span
+              className="px-2 py-0.5 rounded-md text-[10px] font-mono"
+              style={{
+                background: "oklch(0.06 0.02 265 / 85%)",
+                color: "#ffd34d",
+                border: "1px solid #ffd34d40",
+              }}
+            >
+              mid={bsInfo.mid} → val={bsInfo.mid + 1}
+            </span>
+          )}
+          <span
+            className="px-2 py-0.5 rounded-md text-[10px] font-mono"
+            style={{
+              background: "oklch(0.06 0.02 265 / 85%)",
+              color: "#5a7cff",
+              border: "1px solid #5a7cff40",
+            }}
+          >
+            hi={bsInfo.hi}
+          </span>
+          <span
+            className="px-2 py-0.5 rounded-md text-[10px] font-mono"
+            style={{
+              background: "oklch(0.06 0.02 265 / 85%)",
+              color: "#3ddc97",
+              border: "1px solid #3ddc9740",
+            }}
+          >
+            target={bsInfo.target}
+          </span>
+          {bsInfo.found && (
+            <span
+              className="px-2 py-0.5 rounded-md text-[10px] font-mono animate-pulse"
+              style={{ background: "#3ddc9720", color: "#3ddc97", border: "1px solid #3ddc9740" }}
+            >
+              ✓ FOUND
+            </span>
+          )}
+          {bsInfo.miss && (
+            <span
+              className="px-2 py-0.5 rounded-md text-[10px] font-mono"
+              style={{ background: "#ff6b5e20", color: "#ff6b5e", border: "1px solid #ff6b5e40" }}
+            >
+              ✗ NOT FOUND
+            </span>
+          )}
+        </div>
+      )}
+      {mode !== "Binary Search" && (
+        <div
+          className="absolute top-12 left-0 right-0 text-center text-[10px] font-mono pointer-events-none z-10"
+          style={{ color: "oklch(0.45 0.04 255)" }}
+        >
+          drag to rotate · click to restart
+        </div>
+      )}
+      {/* Legend */}
+      <div className="absolute bottom-10 left-0 right-0 flex justify-center gap-4 pointer-events-none">
+        {(mode === "Quick Sort"
+          ? [
+              { dot: "#ffd34d", label: "Compare" },
+              { dot: "#ff6b5e", label: "Swap" },
+              { dot: "#3ddc97", label: "Sorted" },
+            ]
+          : [
+              { dot: "#5a7cff", label: "Range [lo..hi]" },
+              { dot: "#ffd34d", label: "Probe mid" },
+              { dot: "#3ddc97", label: "Found" },
+            ]
+        ).map(({ dot, label }) => (
+          <span
+            key={label}
+            className="flex items-center gap-1 text-[10px] font-mono"
+            style={{ color: "oklch(0.50 0.04 255)" }}
+          >
+            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
+            {label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -814,7 +1081,7 @@ function BigOPlayground() {
               className="flex items-center gap-1.5 text-[11px] font-mono"
               style={{ color: "oklch(0.7 0.04 255)" }}
             >
-              <span className="w-2.5 h-0.5 rounded-full" style={{ background: c.color }} />
+              <span className="w-2.5 h-[2px] rounded-full" style={{ background: c.color }} />
               {c.name}
             </span>
           ))}
@@ -826,86 +1093,304 @@ function BigOPlayground() {
 
 // ─── 5 new animated sections: Race, Spotlight, Complexity Table, Pseudocode Stepper, Timeline ─
 
+// ─── Sort Race helpers ────────────────────────────────────────────────────────
+type SortFrame = {
+  arr: number[];
+  cmp: [number, number] | null;
+  swapped: [number, number] | null;
+  done: boolean;
+};
+
+function recordBubble(input: number[]): SortFrame[] {
+  const a = [...input];
+  const frames: SortFrame[] = [];
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: false });
+  let ops = 0;
+  for (let i = 0; i < a.length; i++) {
+    for (let j = 0; j < a.length - 1 - i; j++) {
+      ops++;
+      frames.push({ arr: [...a], cmp: [j, j + 1], swapped: null, done: false });
+      if (a[j] > a[j + 1]) {
+        [a[j], a[j + 1]] = [a[j + 1], a[j]];
+        frames.push({ arr: [...a], cmp: null, swapped: [j, j + 1], done: false });
+      }
+    }
+  }
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: true });
+  return frames;
+}
+
+function recordInsertion(input: number[]): SortFrame[] {
+  const a = [...input];
+  const frames: SortFrame[] = [];
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: false });
+  for (let i = 1; i < a.length; i++) {
+    let j = i;
+    while (j > 0) {
+      frames.push({ arr: [...a], cmp: [j - 1, j], swapped: null, done: false });
+      if (a[j - 1] > a[j]) {
+        [a[j], a[j - 1]] = [a[j - 1], a[j]];
+        frames.push({ arr: [...a], cmp: null, swapped: [j - 1, j], done: false });
+        j--;
+      } else break;
+    }
+  }
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: true });
+  return frames;
+}
+
+function recordSelection(input: number[]): SortFrame[] {
+  const a = [...input];
+  const frames: SortFrame[] = [];
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: false });
+  for (let i = 0; i < a.length; i++) {
+    let m = i;
+    for (let j = i + 1; j < a.length; j++) {
+      frames.push({ arr: [...a], cmp: [m, j], swapped: null, done: false });
+      if (a[j] < a[m]) m = j;
+    }
+    if (m !== i) {
+      [a[i], a[m]] = [a[m], a[i]];
+      frames.push({ arr: [...a], cmp: null, swapped: [i, m], done: false });
+    }
+  }
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: true });
+  return frames;
+}
+
+function recordQuick(input: number[]): SortFrame[] {
+  const a = [...input];
+  const frames: SortFrame[] = [];
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: false });
+  const qs = (lo: number, hi: number) => {
+    if (lo >= hi) return;
+    const p = a[hi];
+    let i = lo - 1;
+    for (let j = lo; j < hi; j++) {
+      frames.push({ arr: [...a], cmp: [j, hi], swapped: null, done: false });
+      if (a[j] <= p) {
+        i++;
+        if (i !== j) {
+          [a[i], a[j]] = [a[j], a[i]];
+          frames.push({ arr: [...a], cmp: null, swapped: [i, j], done: false });
+        }
+      }
+    }
+    if (i + 1 !== hi) {
+      [a[i + 1], a[hi]] = [a[hi], a[i + 1]];
+      frames.push({ arr: [...a], cmp: null, swapped: [i + 1, hi], done: false });
+    }
+    qs(lo, i);
+    qs(i + 2, hi);
+  };
+  qs(0, a.length - 1);
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: true });
+  return frames;
+}
+
+function recordMerge(input: number[]): SortFrame[] {
+  const a = [...input];
+  const frames: SortFrame[] = [];
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: false });
+  const ms = (lo: number, hi: number) => {
+    if (lo >= hi) return;
+    const mid2 = (lo + hi) >> 1;
+    ms(lo, mid2);
+    ms(mid2 + 1, hi);
+    const tmp: number[] = [];
+    let l = lo,
+      r = mid2 + 1;
+    while (l <= mid2 && r <= hi) {
+      frames.push({ arr: [...a], cmp: [l, r], swapped: null, done: false });
+      if (a[l] <= a[r]) tmp.push(a[l++]);
+      else tmp.push(a[r++]);
+    }
+    while (l <= mid2) tmp.push(a[l++]);
+    while (r <= hi) tmp.push(a[r++]);
+    for (let k = 0; k < tmp.length; k++) {
+      a[lo + k] = tmp[k];
+    }
+    frames.push({ arr: [...a], cmp: null, swapped: [lo, hi], done: false });
+  };
+  ms(0, a.length - 1);
+  frames.push({ arr: [...a], cmp: null, swapped: null, done: true });
+  return frames;
+}
+
+const ALGO_META = [
+  {
+    name: "Bubble",
+    color: "#5a7cff",
+    glow: "#5a7cff40",
+    complexity: "O(n²)",
+    record: recordBubble,
+  },
+  {
+    name: "Insertion",
+    color: "#ffd34d",
+    glow: "#ffd34d40",
+    complexity: "O(n²)",
+    record: recordInsertion,
+  },
+  {
+    name: "Selection",
+    color: "#ff6b5e",
+    glow: "#ff6b5e40",
+    complexity: "O(n²)",
+    record: recordSelection,
+  },
+  {
+    name: "Quick",
+    color: "#3ddc97",
+    glow: "#3ddc9740",
+    complexity: "O(n log n)",
+    record: recordQuick,
+  },
+  {
+    name: "Merge",
+    color: "#c084fc",
+    glow: "#c084fc40",
+    complexity: "O(n log n)",
+    record: recordMerge,
+  },
+] as const;
+
+const RACE_N = 18;
+
+function AlgoVizBar({
+  frames,
+  frameIdx,
+  color,
+  name,
+  complexity,
+}: {
+  frames: SortFrame[];
+  frameIdx: number;
+  color: string;
+  name: string;
+  complexity: string;
+}) {
+  const f = frames[Math.min(frameIdx, frames.length - 1)];
+  const arr = f.arr;
+  const maxVal = Math.max(...arr);
+  const pct = Math.round((Math.min(frameIdx, frames.length - 1) / (frames.length - 1)) * 100);
+  return (
+    <div
+      className="rounded-xl p-3"
+      style={{ background: "oklch(0.09 0.02 265)", border: `1px solid ${color}30` }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-bold" style={{ color }}>
+            {name}
+          </span>
+          <span
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+            style={{ background: `${color}18`, color }}
+          >
+            {complexity}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {f.done && (
+            <span className="text-[10px] font-mono" style={{ color: "#3ddc97" }}>
+              ✓ done
+            </span>
+          )}
+          <span className="text-[10px] font-mono" style={{ color: "oklch(0.45 0.04 255)" }}>
+            {pct}%
+          </span>
+        </div>
+      </div>
+      {/* Bar visualization */}
+      <div className="flex items-end gap-[2px] h-16">
+        {arr.map((v, i) => {
+          const isCmp = f.cmp && (f.cmp[0] === i || f.cmp[1] === i);
+          const isSwp = f.swapped && (f.swapped[0] === i || f.swapped[1] === i);
+          const barColor = f.done ? "#3ddc97" : isSwp ? "#ff6b5e" : isCmp ? "#ffd34d" : color;
+          const h = Math.max(4, (v / maxVal) * 60);
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                height: `${h}px`,
+                background: barColor,
+                borderRadius: "2px 2px 0 0",
+                transition: "height 0.12s ease, background 0.1s",
+                boxShadow: isCmp || isSwp ? `0 0 6px ${barColor}` : undefined,
+              }}
+            />
+          );
+        })}
+      </div>
+      {/* Progress track */}
+      <div
+        className="mt-2 h-1 rounded-full overflow-hidden"
+        style={{ background: "oklch(1 0 0 / 8%)" }}
+      >
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: color, width: `${pct}%` }}
+          transition={{ duration: 0.2 }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // 1) Live Sort Race
 function SortRace() {
-  const algos = ["Bubble", "Insertion", "Selection", "Quick"] as const;
   const [tick, setTick] = useState(0);
-  const data = useMemo(() => {
-    const N = 22;
-    const seed = Array.from({ length: N }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
-    const runs: Record<string, number[]> = {};
-    const counts: Record<string, number> = {};
-    runs.Bubble = (() => {
-      const a = [...seed];
-      let c = 0;
-      for (let i = 0; i < a.length; i++)
-        for (let j = 0; j < a.length - 1 - i; j++) {
-          c++;
-          if (a[j] > a[j + 1]) [a[j], a[j + 1]] = [a[j + 1], a[j]];
-        }
-      counts.Bubble = c;
-      return a;
-    })();
-    runs.Insertion = (() => {
-      const a = [...seed];
-      let c = 0;
-      for (let i = 1; i < a.length; i++) {
-        let j = i;
-        while (j > 0) {
-          c++;
-          if (a[j - 1] > a[j]) {
-            [a[j], a[j - 1]] = [a[j - 1], a[j]];
-            j--;
-          } else break;
-        }
-      }
-      counts.Insertion = c;
-      return a;
-    })();
-    runs.Selection = (() => {
-      const a = [...seed];
-      let c = 0;
-      for (let i = 0; i < a.length; i++) {
-        let m = i;
-        for (let j = i + 1; j < a.length; j++) {
-          c++;
-          if (a[j] < a[m]) m = j;
-        }
-        [a[i], a[m]] = [a[m], a[i]];
-      }
-      counts.Selection = c;
-      return a;
-    })();
-    runs.Quick = (() => {
-      const a = [...seed];
-      let c = 0;
-      const qs = (lo: number, hi: number) => {
-        if (lo >= hi) return;
-        const p = a[hi];
-        let i = lo - 1;
-        for (let j = lo; j < hi; j++) {
-          c++;
-          if (a[j] <= p) {
-            i++;
-            [a[i], a[j]] = [a[j], a[i]];
-          }
-        }
-        [a[i + 1], a[hi]] = [a[hi], a[i + 1]];
-        qs(lo, i);
-        qs(i + 2, hi);
-      };
-      qs(0, a.length - 1);
-      counts.Quick = c;
-      return a;
-    })();
-    return { counts };
+  const [running, setRunning] = useState(false);
+  const [frameIdx, setFrameIdx] = useState(0);
+  const [speed, setSpeed] = useState(60); // ms per frame
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { allFrames, maxFrames } = useMemo(() => {
+    const s = Array.from({ length: RACE_N }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+    const af = ALGO_META.map((m) => m.record(s));
+    return { allFrames: af, maxFrames: Math.max(...af.map((f) => f.length)) };
   }, [tick]);
-  const maxC = Math.max(...Object.values(data.counts));
+
+  // auto-advance
+  useEffect(() => {
+    if (!running) return;
+    timerRef.current = setInterval(() => {
+      setFrameIdx((f) => {
+        if (f >= maxFrames - 1) {
+          setRunning(false);
+          return maxFrames - 1;
+        }
+        return f + 1;
+      });
+    }, speed);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [running, speed, maxFrames]);
+
+  const reset = () => {
+    setRunning(false);
+    setFrameIdx(0);
+    setTick((t) => t + 1);
+  };
+  const toggle = () => {
+    if (frameIdx >= maxFrames - 1) {
+      setFrameIdx(0);
+      setRunning(true);
+    } else setRunning((r) => !r);
+  };
+
+  // winner = algo that finished first (fewest frames)
+  const frameCounts = allFrames.map((f) => f.length);
+  const winnerIdx = frameCounts.indexOf(Math.min(...frameCounts));
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.1 }}
       className="space-y-4"
     >
       <header className="flex items-end justify-between flex-wrap gap-3">
@@ -917,50 +1402,169 @@ function SortRace() {
             Live Sort Race
           </h2>
           <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
-            Comparisons performed on the same random array.
+            5 algorithms, same array — watch them race step-by-step.
           </p>
         </div>
-        <button
-          onClick={() => setTick((t) => t + 1)}
-          className="px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-105"
-          style={{
-            background: "oklch(0.75 0.18 162 / 18%)",
-            color: "oklch(0.75 0.18 162)",
-            border: "1px solid oklch(0.75 0.18 162 / 35%)",
-          }}
-        >
-          ⟳ New race
-        </button>
-      </header>
-      <div className="grid sm:grid-cols-2 gap-3">
-        {algos.map((a) => (
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Speed */}
           <div
-            key={a}
-            className="rounded-2xl p-4"
-            style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
+            className="flex items-center gap-1.5 text-[11px] font-mono"
+            style={{ color: "oklch(0.55 0.04 255)" }}
           >
-            <div className="flex items-center justify-between mb-2 text-xs">
-              <span className="font-mono font-semibold">{a}</span>
-              <span className="font-mono" style={{ color: "oklch(0.55 0.04 255)" }}>
-                {data.counts[a]} ops
+            <span>slow</span>
+            <input
+              type="range"
+              min={20}
+              max={200}
+              step={10}
+              value={200 - speed + 20}
+              onChange={(e) => setSpeed(200 - Number(e.target.value) + 20)}
+              className="w-16 accent-blue-400"
+            />
+            <span>fast</span>
+          </div>
+          <button
+            onClick={toggle}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+            style={{
+              background: running ? "oklch(0.68 0.22 22 / 20%)" : "oklch(0.75 0.18 162 / 20%)",
+              color: running ? "oklch(0.82 0.22 22)" : "oklch(0.75 0.18 162)",
+              border: `1px solid ${running ? "oklch(0.68 0.22 22 / 35%)" : "oklch(0.75 0.18 162 / 35%)"}`,
+            }}
+          >
+            {running ? "⏸ Pause" : frameIdx >= maxFrames - 1 ? "↺ Replay" : "▶ Play"}
+          </button>
+          <button
+            onClick={reset}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+            style={{
+              background: "oklch(0.72 0.19 255 / 14%)",
+              color: "oklch(0.72 0.19 255)",
+              border: "1px solid oklch(0.72 0.19 255 / 30%)",
+            }}
+          >
+            ⟳ New array
+          </button>
+        </div>
+      </header>
+
+      {/* Winner badge */}
+      <AnimatePresence>
+        {frameIdx >= maxFrames - 1 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="rounded-xl px-4 py-3 flex items-center gap-3"
+            style={{
+              background: `${ALGO_META[winnerIdx].color}14`,
+              border: `1px solid ${ALGO_META[winnerIdx].color}40`,
+            }}
+          >
+            <span className="text-lg">🏆</span>
+            <div>
+              <span className="text-sm font-bold" style={{ color: ALGO_META[winnerIdx].color }}>
+                {ALGO_META[winnerIdx].name} Sort
+              </span>
+              <span className="text-xs ml-2" style={{ color: "oklch(0.6 0.04 255)" }}>
+                finished in fewest steps · {ALGO_META[winnerIdx].complexity}
               </span>
             </div>
-            <div
-              className="h-3 rounded-full overflow-hidden"
-              style={{ background: "oklch(1 0 0 / 8%)" }}
-            >
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(data.counts[a] / maxC) * 100}%` }}
-                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-                className="h-full rounded-full"
-                style={{
-                  background: a === "Quick" ? "oklch(0.75 0.18 162)" : "oklch(0.72 0.19 255)",
-                }}
-              />
+            <div className="ml-auto flex gap-3 text-[11px] font-mono">
+              {ALGO_META.map((m, i) => (
+                <span key={m.name} style={{ color: m.color }}>
+                  {m.name}: {allFrames[i].length - 1} steps
+                </span>
+              ))}
             </div>
-          </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global scrubber */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-mono" style={{ color: "oklch(0.45 0.04 255)" }}>
+          step {frameIdx}/{maxFrames - 1}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={maxFrames - 1}
+          value={frameIdx}
+          onChange={(e) => {
+            setRunning(false);
+            setFrameIdx(Number(e.target.value));
+          }}
+          className="flex-1 accent-blue-400"
+        />
+      </div>
+
+      {/* 2D Visualizations grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {ALGO_META.map((m, i) => (
+          <AlgoVizBar
+            key={m.name}
+            frames={allFrames[i]}
+            frameIdx={frameIdx}
+            color={m.color}
+            name={m.name}
+            complexity={m.complexity}
+          />
         ))}
+        {/* Time complexity comparison chart */}
+        <div
+          className="rounded-xl p-3 sm:col-span-2 lg:col-span-1"
+          style={{ background: "oklch(0.09 0.02 265)", border: "1px solid oklch(1 0 0 / 10%)" }}
+        >
+          <div className="text-[11px] font-mono mb-2" style={{ color: "oklch(0.55 0.04 255)" }}>
+            Steps comparison
+          </div>
+          <div className="space-y-2">
+            {ALGO_META.map((m, i) => {
+              const total = allFrames[i].length - 1;
+              const maxTotal = Math.max(...allFrames.map((f) => f.length - 1));
+              const prog = Math.min(frameIdx, allFrames[i].length - 1) / (allFrames[i].length - 1);
+              return (
+                <div key={m.name}>
+                  <div className="flex justify-between text-[10px] font-mono mb-0.5">
+                    <span style={{ color: m.color }}>{m.name}</span>
+                    <span style={{ color: "oklch(0.45 0.04 255)" }}>{total} steps</span>
+                  </div>
+                  <div
+                    className="h-2 rounded-full overflow-hidden relative"
+                    style={{ background: "oklch(1 0 0 / 8%)" }}
+                  >
+                    {/* total bar faint */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: `${(total / maxTotal) * 100}%`,
+                        background: `${m.color}20`,
+                        borderRadius: 4,
+                      }}
+                    />
+                    {/* current progress */}
+                    <motion.div
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        background: m.color,
+                        borderRadius: 4,
+                        width: `${(total / maxTotal) * 100 * prog}%`,
+                        boxShadow: `0 0 6px ${m.color}`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </motion.section>
   );
@@ -1265,7 +1869,7 @@ function Timeline() {
               style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
             >
               <span
-                className="absolute -left-4.75 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
+                className="absolute -left-[19px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
                 style={{
                   background: "oklch(0.72 0.19 255)",
                   boxShadow: "0 0 12px oklch(0.72 0.19 255 / 60%)",
@@ -1534,7 +2138,7 @@ function Index() {
           <motion.div
             animate={{ rotate: [0, 360] }}
             transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-20 left-1/2 -translate-x-1/2 w-170 h-170 rounded-full blur-3xl opacity-10"
+            className="absolute -top-20 left-1/2 -translate-x-1/2 w-[680px] h-[680px] rounded-full blur-3xl opacity-10"
             style={{
               background:
                 "conic-gradient(from 0deg, oklch(0.72 0.19 255), oklch(0.75 0.18 162), oklch(0.82 0.18 85), oklch(0.72 0.19 255))",
@@ -1747,7 +2351,7 @@ function Index() {
                 }}
               >
                 <div
-                  className="absolute top-0 left-0 right-0 h-px"
+                  className="absolute top-0 left-0 right-0 h-[1px]"
                   style={{
                     background: `linear-gradient(90deg, transparent, ${c.accent}, transparent)`,
                   }}
