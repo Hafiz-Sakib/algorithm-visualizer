@@ -7,26 +7,122 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Nav } from "../components/Nav";
 
 function NotFoundComponent() {
+  // animated grid of cells gets "visited" by a fake BFS — same vibe as pathfinding
+  const COLS = 18, ROWS = 9;
+  const cells = useMemo(() => Array.from({ length: ROWS * COLS }, (_, i) => i), []);
+  const [visited, setVisited] = useState<Set<number>>(new Set());
+  const [glitchKey, setGlitchKey] = useState(0);
+
+  useEffect(() => {
+    let i = 0;
+    const order = [...cells].sort(() => Math.random() - 0.5);
+    const id = setInterval(() => {
+      setVisited((prev) => {
+        if (i >= order.length) { i = 0; return new Set(); }
+        const next = new Set(prev);
+        next.add(order[i++]);
+        return next;
+      });
+    }, 55);
+    return () => clearInterval(id);
+  }, [cells]);
+
+  useEffect(() => {
+    const id = setInterval(() => setGlitchKey((k) => k + 1), 2400);
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <div className="text-center space-y-4">
-        <div className="text-7xl font-bold tracking-tight" style={{ letterSpacing: "-0.04em", color: "oklch(0.25 0.04 265)" }}>404</div>
-        <h2 className="text-lg font-semibold">Page not found</h2>
-        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>This route doesn't exist.</p>
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-105"
-          style={{ background: "oklch(0.72 0.19 255)", color: "oklch(0.08 0.02 265)" }}
+    <div className="relative flex min-h-[78vh] items-center justify-center px-4 overflow-hidden">
+      {/* animated grid backdrop */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+        }}
+      >
+        <div
+          className="absolute inset-0 grid gap-[3px] p-6"
+          style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
         >
-          ← Go home
-        </Link>
+          {cells.map((i) => {
+            const isVisited = visited.has(i);
+            return (
+              <div key={i}
+                className="aspect-square rounded-[3px] transition-all duration-300"
+                style={{
+                  background: isVisited ? "oklch(0.72 0.19 255 / 35%)" : "oklch(1 0 0 / 4%)",
+                  boxShadow: isVisited ? "0 0 8px oklch(0.72 0.19 255 / 50%)" : "none",
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* floating orbs */}
+      <div
+        className="absolute top-10 left-1/4 w-64 h-64 rounded-full blur-3xl opacity-30 pointer-events-none animate-pulse"
+        style={{ background: "oklch(0.72 0.19 255)" }}
+      />
+      <div
+        className="absolute bottom-10 right-1/4 w-56 h-56 rounded-full blur-3xl opacity-25 pointer-events-none animate-pulse"
+        style={{ background: "oklch(0.75 0.18 162)", animationDelay: "1s" }}
+      />
+
+      <div className="relative text-center space-y-5 z-10 max-w-md">
+        <div
+          key={glitchKey}
+          className="relative inline-block text-[120px] sm:text-[160px] font-bold leading-none select-none"
+          style={{ letterSpacing: "-0.06em" }}
+        >
+          <span style={{
+            background: "linear-gradient(135deg, oklch(0.72 0.19 255), oklch(0.75 0.18 162), oklch(0.82 0.22 60))",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}>404</span>
+          <span aria-hidden className="absolute inset-0 opacity-60 mix-blend-screen animate-glitch-a" style={{ color: "oklch(0.70 0.22 22)" }}>404</span>
+          <span aria-hidden className="absolute inset-0 opacity-60 mix-blend-screen animate-glitch-b" style={{ color: "oklch(0.75 0.18 162)" }}>404</span>
+        </div>
+
+        <div className="space-y-1">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>
+            Path not found
+          </h2>
+          <p className="text-sm font-mono" style={{ color: "oklch(0.60 0.04 255)" }}>
+            <span style={{ color: "oklch(0.74 0.20 30)" }}>BFS</span> exhausted the frontier · no route to this URL
+          </p>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-105"
+            style={{ background: "oklch(0.72 0.19 255)", color: "oklch(0.08 0.02 265)", boxShadow: "0 0 24px oklch(0.72 0.19 255 / 30%)" }}
+          >
+            ← Back to start node
+          </Link>
+          <Link
+            to="/pathfinding"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:scale-105"
+            style={{ background: "oklch(1 0 0 / 6%)", color: "oklch(0.85 0.01 255)", border: "1px solid oklch(1 0 0 / 10%)" }}
+          >
+            Try Pathfinding instead
+          </Link>
+        </div>
+
+        <p className="text-[10px] font-mono pt-3" style={{ color: "oklch(0.40 0.04 255)" }}>
+          status: 404 · visited: {visited.size}/{ROWS * COLS}
+        </p>
       </div>
     </div>
   );

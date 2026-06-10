@@ -18,7 +18,10 @@ const ALGO_COLOR: Record<GraphAlgoName, string> = {
   "Topological Sort": "oklch(0.82 0.18 85)",
   "Cycle Detection": "oklch(0.68 0.22 22)",
   "Dijkstra": "oklch(0.75 0.18 310)",
+  "Bellman-Ford": "oklch(0.74 0.20 30)",
+  "Floyd-Warshall": "oklch(0.78 0.18 200)",
   "Prim MST": "oklch(0.72 0.22 180)",
+  "Kruskal MST": "oklch(0.76 0.18 60)",
 };
 
 const W = 620, H = 310;
