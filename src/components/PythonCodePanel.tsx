@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
+import { Check, Copy, Download } from "lucide-react";
 import { PYTHON_CODES, type PySection } from "../lib/algorithms/python";
+import { LIBRARY_DATA } from "../lib/algorithms/libraryData";
+import {
+  initialCppState,
+  tokenizeCppLine,
+  CPP_TOKEN_COLORS,
+  type CppLineState,
+} from "../lib/cppHighlight";
 
 interface PythonCodePanelProps {
   section: PySection;
@@ -7,6 +15,8 @@ interface PythonCodePanelProps {
   accentColor: string;
   /** Lines (1-indexed) to highlight as currently-executing. */
   activeLines?: number[];
+  /** Optional max-height (CSS) for the code body — enables independent scroll. */
+  bodyMaxHeight?: string;
 }
 
 export function PythonCodePanel({
@@ -14,14 +24,23 @@ export function PythonCodePanel({
   algo,
   accentColor,
   activeLines = [],
+  bodyMaxHeight,
 }: PythonCodePanelProps) {
-  const snippet = PYTHON_CODES[section]?.[algo];
+  // The Library page extends the catalogue beyond what python.ts ships, so
+  // fall back to LIBRARY_DATA when the section is "library".
+  const snippet =
+    PYTHON_CODES[section]?.[algo] ??
+    (section === "library" ? LIBRARY_DATA[algo]?.snippet : undefined);
   const [copied, setCopied] = useState(false);
 
-  // Plain C++ source — no syntax highlighting markup, just the raw code lines.
-  const lines = useMemo(() => {
-    if (!snippet) return [] as string[];
-    return snippet.code.split("\n");
+  // Tokenise once per snippet — keeps render cheap even for long programs.
+  const highlighted = useMemo(() => {
+    if (!snippet) return [] as { raw: string; tokens: ReturnType<typeof tokenizeCppLine> }[];
+    const state: CppLineState = initialCppState();
+    return snippet.code.split("\n").map((raw) => ({
+      raw,
+      tokens: tokenizeCppLine(raw, state),
+    }));
   }, [snippet]);
 
   const activeSet = useMemo(() => new Set(activeLines), [activeLines]);
@@ -46,7 +65,9 @@ export function PythonCodePanel({
       await navigator.clipboard.writeText(snippet.code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const download = () => {
@@ -75,9 +96,9 @@ export function PythonCodePanel({
         className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
         style={{ borderBottom: "1px solid oklch(1 0 0 / 6%)" }}
       >
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span
-            className="text-[10px] font-mono uppercase tracking-widest"
+            className="text-[10px] font-mono uppercase tracking-widest truncate"
             style={{ color: "oklch(0.40 0.04 255)" }}
           >
             c++ · {algo}
@@ -97,43 +118,60 @@ export function PythonCodePanel({
           {activeLines.length > 0 && (
             <span
               className="text-[10px] font-mono px-2 py-0.5 rounded-full hidden sm:inline-flex items-center gap-1"
-              style={{ background: `${accentColor}18`, color: accentColor, border: `1px solid ${accentColor}30` }}
+              style={{
+                background: `${accentColor}18`,
+                color: accentColor,
+                border: `1px solid ${accentColor}30`,
+              }}
               title="Currently executing lines"
             >
-              <span className="inline-block h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: accentColor }} />
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full animate-pulse"
+                style={{ background: accentColor }}
+              />
               line {activeLines.join(", ")}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={download}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all hover:scale-105"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-all hover:scale-[1.03] active:scale-95"
             style={{
-              background: "oklch(1 0 0 / 6%)",
-              color: "oklch(0.55 0.04 255)",
-              border: "1px solid oklch(1 0 0 / 10%)",
+              background: "oklch(0.72 0.19 255 / 14%)",
+              color: "oklch(0.82 0.14 255)",
+              border: "1px solid oklch(0.72 0.19 255 / 30%)",
             }}
             title="Download .cpp file"
           >
-            ⬇ Download
+            <Download size={12} strokeWidth={2.4} />
+            <span>Download</span>
           </button>
           <button
             onClick={copy}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all hover:scale-105"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-all hover:scale-[1.03] active:scale-95"
             style={{
-              background: "oklch(1 0 0 / 6%)",
-              color: copied ? "oklch(0.75 0.18 162)" : "oklch(0.55 0.04 255)",
-              border: "1px solid oklch(1 0 0 / 10%)",
+              background: copied
+                ? "oklch(0.75 0.18 162 / 18%)"
+                : "oklch(0.75 0.18 162 / 14%)",
+              color: copied ? "oklch(0.85 0.18 162)" : "oklch(0.80 0.16 162)",
+              border: `1px solid ${
+                copied ? "oklch(0.75 0.18 162 / 50%)" : "oklch(0.75 0.18 162 / 30%)"
+              }`,
             }}
+            title="Copy code to clipboard"
           >
-            {copied ? "✓ Copied" : "⎘ Copy"}
+            {copied ? <Check size={12} strokeWidth={2.4} /> : <Copy size={12} strokeWidth={2.4} />}
+            <span>{copied ? "Copied" : "Copy"}</span>
           </button>
         </div>
       </div>
 
-      {/* Code body */}
-      <div className="overflow-x-auto">
+      {/* Code body — independent vertical scroll when bodyMaxHeight is set */}
+      <div
+        className="overflow-auto"
+        style={bodyMaxHeight ? { maxHeight: bodyMaxHeight } : undefined}
+      >
         <pre
           className="text-[12px] font-mono leading-relaxed py-3"
           style={{
@@ -143,7 +181,7 @@ export function PythonCodePanel({
             margin: 0,
           }}
         >
-          {lines.map((text, i) => {
+          {highlighted.map(({ raw, tokens }, i) => {
             const lineNo = i + 1;
             const isActive = activeSet.has(lineNo);
             return (
@@ -166,7 +204,25 @@ export function PythonCodePanel({
                 >
                   {lineNo}
                 </span>
-                <span className="flex-1 pr-4">{text.length ? text : "\u00a0"}</span>
+                <span className="flex-1 pr-4">
+                  {tokens.length === 0 ? (
+                    raw.length ? raw : "\u00a0"
+                  ) : (
+                    tokens.map((t, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          color: CPP_TOKEN_COLORS[t.kind],
+                          fontStyle: t.kind === "comment" ? "italic" : undefined,
+                          fontWeight:
+                            t.kind === "keyword" || t.kind === "preproc" ? 600 : undefined,
+                        }}
+                      >
+                        {t.text}
+                      </span>
+                    ))
+                  )}
+                </span>
               </div>
             );
           })}

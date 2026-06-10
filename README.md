@@ -1,143 +1,81 @@
-# AlgoViz — Interactive Algorithm Visualizer with C++ Source
+# AlgoViz — Interactive Algorithm Visualizer
 
-> Step through 60+ classic algorithms in real-time and read the matching C++ STL implementation line-by-line as it runs.
+AlgoViz is an interactive playground for classic computer-science algorithms. Every visualization is paired with the **matching C++ STL source code**, and the currently executing line lights up as you watch the animation step by step.
 
-AlgoViz is a single-page application built with **TanStack Start v1**, **React 19**, **Tailwind CSS v4**, **Framer Motion** and **Three.js**. Every visualization is paired with a clean, well-commented C++/STL reference implementation that highlights the currently-executing line as the animation plays.
+## ✨ What's new in this release
 
----
+- **Syntax-highlighted C++ everywhere.** All code panels (every visualizer page and the Library) now ship with a lightweight, dependency-free C++ tokenizer that colours keywords, types, STL identifiers, strings, numbers, comments and operators — synced with the animation's active-line indicator.
+- **Library expanded to 50+ algorithms.** Strings (KMP, Aho-Corasick, Suffix Array, Trie …), Math (Linear Sieve, Miller-Rabin, Pollard's Rho, Matrix Exponentiation …), DP (LCS, LIS, Kadane, 0/1 & Unbounded Knapsack, Catalan …), Graph (Dijkstra, Bellman-Ford, Tarjan SCC, Articulation Points, Hopcroft-Karp, Edmonds-Karp …), Data Structures (DSU, Fenwick, Segment Tree, Sparse Table, Treap, LRU, Monotonic Stack …), Tree (LCA Binary Lifting, HLD, Euler Tour, Morris), Sorting (Counting, Radix, Bucket), Geometry (Convex Hull), and more.
+- **Detailed explanations on every Library entry.** Each algorithm now includes *How it works*, *When to use it*, *Time & Space complexity*, and a *worked example*.
+- **Mobile-first Library page.** Search bar, category chips, sidebar list, code panel and explanation pane each scroll independently — the page itself no longer jumps when you scroll long code on a phone.
+- **Better Copy / Download buttons** with lucide icons, explicit labels and accent colours that fit the dark UI.
+- **New 3D BFS / DFS scene on the homepage.** A small graph laid out on a sphere; toggle between BFS and DFS, drag to orbit the camera, and watch the traversal expand in real time with edge highlighting.
+- **Polished dropdowns on N-Queens and Knight's Tour** so they finally match the dark theme.
 
-## ✨ Features
+## Tech stack
 
-- 🎞 **60+ algorithms** across 11 categories (sorting, searching, graphs, trees, pathfinding, DP, strings, backtracking, math, data structures, library).
-- 🧊 **Three.js hero** — a 3-D visualizer that animates **Quick Sort** *and* **Binary Search** (toggle in the top-right of the canvas). Slowed-down playback, drag-to-rotate, click-to-restart.
-- 📈 **Big-O Playground** — interactive complexity chart with **mouse-wheel zoom** and **hover tooltips** showing live values for O(1), O(log n), O(n), O(n log n) and O(n²).
-- 🏁 **Live Sort Race** — compares Bubble / Insertion / Selection / Quick on the same random seed.
-- 🔦 **Algorithm Spotlight** — auto-rotating cards.
-- 📊 **Complexity table**, animated **pseudocode stepper**, **algorithm timeline**.
-- 🛠 **Synced C++ code panel** — line numbers light up while the animation runs; one-click copy / download.
-- 🎨 **Fancy animated 404** — BFS-ripple canvas + glitch text + scanline overlay.
+- React 19 + TanStack Start (Vite 7, file-based routing under `src/routes/`)
+- Tailwind v4 (CSS-first design tokens in `src/styles.css`)
+- Framer Motion for animations
+- Three.js for the homepage 3D scenes (Quick Sort / Binary Search, A* pathfinding, BFS/DFS graph)
+- Lucide React for iconography
+- Zero new runtime dependencies for syntax highlighting — a small custom tokenizer ships in `src/lib/cppHighlight.ts`
 
----
+## Project layout
 
-## 🧠 Algorithms covered
+```
+src/
+├── components/
+│   ├── GraphTraversal3D.tsx   ← new 3D BFS/DFS scene
+│   ├── Nav.tsx
+│   ├── PythonCodePanel.tsx    ← now with syntax highlighting & icon buttons
+│   └── viz/Controls.tsx
+├── lib/
+│   ├── cppHighlight.ts        ← lightweight C++ tokenizer (no deps)
+│   └── algorithms/
+│       ├── libraryData.ts     ← 50+ algorithms + explanations
+│       └── python.ts          ← per-visualizer C++ snippets
+└── routes/
+    ├── library.tsx            ← rebuilt mobile-friendly Library
+    ├── nqueens.tsx, knights.tsx (dark-themed dropdowns)
+    └── … (visualizer pages)
+```
 
-### Sorting (13)
-Bubble · Selection · Insertion · Merge · **Quick** · Heap · Shell · Counting · Radix · Cocktail · Gnome · Comb · Cycle
-
-### Searching (6)
-Linear · **Binary** · Jump · Exponential · Ternary · Interpolation
-
-### Graph (9)
-DFS · BFS · Topological Sort · Cycle Detection · **Dijkstra** · **Bellman-Ford** · **Floyd-Warshall** · **Prim MST** · **Kruskal MST**
-
-### Pathfinding (3)
-BFS · Dijkstra · **A\***
-
-### Trees (4) · Strings (4) · DP (6) · Backtracking (3)
-BFS / DFS-In / Pre / Post  ·  Naive / KMP / Rabin-Karp / Z-Algorithm  ·  Fibonacci / LCS / Knapsack / Edit Distance / Coin Change / LIS  ·  N-Queens / Knight's Tour / Tower of Hanoi
-
-### Library (15 new — C++ reference only)
-Boyer-Moore · Manacher · Sieve of Eratosthenes · Euclidean GCD (with ext-gcd) · Fast Modular Exponentiation · Matrix Chain Multiplication · Rod Cutting · Subset Sum · Union-Find (DSU) · Fenwick Tree (BIT) · Segment Tree · Kosaraju SCC · Tarjan Bridges · Bipartite Check · Morris Inorder Traversal
-
----
-
-## 🚀 Getting started
+## Running locally
 
 ```bash
-# 1. install
-npm install        # (or: bun install / pnpm install)
-
-# 2. run dev server
-npm run dev        # → http://localhost:5173
-
-# 3. production build
-npm run build
-npm run start
+bun install
+bun run dev
 ```
 
-> ℹ️ The repo also works with `bun`; a `bunfig.toml` is included. If you prefer bun:
-> `bun install && bun run dev`.
+Open <http://localhost:5173>.
 
----
+Build:
 
-## 🗂 Project structure
-
-```
-algorithm-visualizer-main/
-├── public/                       static assets, icons, manifest
-├── src/
-│   ├── components/
-│   │   ├── Nav.tsx               sticky top nav
-│   │   ├── PythonCodePanel.tsx   C++ code viewer (line-highlight + copy)
-│   │   └── viz/Controls.tsx      shared player controls
-│   ├── hooks/                    React helpers
-│   ├── lib/
-│   │   ├── algorithms/
-│   │   │   ├── sorting.ts        sort generators (yield steps)
-│   │   │   ├── searching.ts
-│   │   │   ├── tree.ts
-│   │   │   ├── graph.ts          + Bellman-Ford / Floyd-Warshall / Kruskal
-│   │   │   ├── pathfinding.ts    BFS / Dijkstra / A* on a grid
-│   │   │   ├── dp.ts
-│   │   │   ├── strings.ts
-│   │   │   ├── backtracking.ts
-│   │   │   ├── lineMaps.ts       step → C++ line mapper
-│   │   │   └── python.ts         C++ snippets (despite filename)
-│   │   ├── usePlayer.ts          play / pause / step machinery
-│   │   └── …                     error reporting, utils
-│   ├── routes/
-│   │   ├── __root.tsx            shell + fancy 404
-│   │   ├── index.tsx             homepage (Three.js + Big-O playground + 5 new sections)
-│   │   ├── sorting.tsx · searching.tsx · graph.tsx · tree.tsx
-│   │   ├── pathfinding.tsx · dp.tsx · strings.tsx
-│   │   ├── nqueens.tsx · knights.tsx · hanoi.tsx
-│   │   └── library.tsx           NEW – 15 extra algorithms with C++
-│   ├── styles.css                Tailwind v4 + glitch / scanline keyframes
-│   └── router.tsx · server.ts · start.ts
-├── package.json · vite.config.ts · tsconfig.json
-└── README.md
+```bash
+bun run build
 ```
 
----
+## Adding a Library algorithm
 
-## 🧩 Tech stack
+Open `src/lib/algorithms/libraryData.ts` and append an entry:
 
-| Layer       | Choice                                        |
-| ----------- | --------------------------------------------- |
-| Framework   | TanStack Start v1 (React 19, Vite 7, SSR-ready) |
-| Styling     | Tailwind CSS v4 (CSS-first via `src/styles.css`) |
-| Animations  | Framer Motion (sections), Three.js (hero)     |
-| State       | TanStack Query, custom `usePlayer` hook        |
-| C++ code    | Plain strings, line-highlighted at runtime    |
-| Deploy      | Designed for Cloudflare Workers (workerd)     |
+```ts
+"My Algorithm": entry(
+  "Category",     // Strings | Math | DP | Graph | Tree | Data Structures | …
+  "O(n log n)",   // time
+  "O(n)",         // space
+  `#include <bits/stdc++.h>\n…`,  // C++ source
+  {
+    howItWorks: "Short paragraph.",
+    whenToUse: ["Use case 1", "Use case 2"],
+    example: "Concrete input → output walkthrough.",
+  },
+),
+```
 
----
+It will immediately appear in the Library sidebar, searchable by name / category / keyword.
 
-## 🔧 Adding a new algorithm
+## License
 
-1. **Implement a generator** in `src/lib/algorithms/<section>.ts` that `yield`s step objects describing what to render.
-2. **Register** the algorithm in that file's `*_ALGOS` map and its type union.
-3. **Map steps → C++ source lines** in `src/lib/algorithms/lineMaps.ts`.
-4. **Add the C++ snippet** to `src/lib/algorithms/python.ts` under the matching section.
-5. The corresponding `src/routes/<section>.tsx` page will pick it up automatically.
-
-For non-visualized algorithms (math, data structures, advanced graph), drop the C++ snippet into the `library` section of `python.ts` and update `CATEGORIES` in `src/routes/library.tsx`.
-
----
-
-## 🧰 Scripts
-
-| Script            | Purpose                              |
-| ----------------- | ------------------------------------ |
-| `npm run dev`     | start Vite dev server                |
-| `npm run build`   | production build                     |
-| `npm run start`   | run the built server                 |
-| `npm run lint`    | ESLint                               |
-
----
-
-## 📝 License
-
-MIT — fork, learn, teach, contribute.
-
-Made with ❤ for everyone trying to understand algorithms.
+MIT — see source headers.

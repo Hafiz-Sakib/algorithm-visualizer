@@ -48,10 +48,10 @@ function KnightsPage() {
             <select
               value={n}
               onChange={(e) => setN(Number(e.target.value))}
-              className="h-8 px-2 rounded-lg text-xs font-mono"
-              style={{ background: "oklch(1 0 0 / 6%)", border: "1px solid oklch(1 0 0 / 10%)", color: "oklch(0.85 0.01 255)" }}
+              className="h-8 px-2 rounded-lg text-xs font-mono outline-none appearance-none cursor-pointer"
+              style={{ background: "oklch(0.14 0.02 265)", border: "1px solid oklch(1 0 0 / 14%)", color: "oklch(0.92 0.01 255)", colorScheme: "dark" }}
             >
-              {[5, 6, 7, 8].map((v) => <option key={v} value={v}>{v}×{v}</option>)}
+              {[5, 6, 7, 8].map((v) => <option key={v} value={v} style={{ background: "oklch(0.14 0.02 265)", color: "oklch(0.92 0.01 255)" }}>{v}×{v}</option>)}
             </select>
           </div>
         </header>
