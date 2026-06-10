@@ -825,6 +825,696 @@ function ThreeScene() {
   );
 }
 
+// ─── A* Search: Three.js grid visualization ──────────────────────────────────
+const GRID_COLS = 14;
+const GRID_ROWS = 10;
+const CELL = 0.52;
+const GRID_W = GRID_COLS * CELL;
+const GRID_H = GRID_ROWS * CELL;
+
+type AStarNodeState = "empty" | "wall" | "open" | "closed" | "path" | "start" | "end";
+
+interface AStarNode {
+  r: number;
+  c: number;
+  state: AStarNodeState;
+  g: number;
+  h: number;
+  parent: AStarNode | null;
+}
+
+function heuristic(a: AStarNode, b: AStarNode) {
+  return Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+}
+
+function runAStar(grid: AStarNodeState[][], sr: number, sc: number, er: number, ec: number) {
+  const nodes: AStarNode[][] = Array.from({ length: GRID_ROWS }, (_, r) =>
+    Array.from({ length: GRID_COLS }, (_, c) => ({
+      r,
+      c,
+      state: grid[r][c],
+      g: Infinity,
+      h: 0,
+      parent: null,
+    })),
+  );
+  const start = nodes[sr][sc];
+  const end = nodes[er][ec];
+  start.g = 0;
+  start.h = heuristic(start, end);
+  const open: AStarNode[] = [start];
+  const visited: Set<string> = new Set();
+
+  type AStepEvent =
+    | { type: "open"; r: number; c: number }
+    | { type: "close"; r: number; c: number }
+    | { type: "path"; cells: [number, number][] }
+    | { type: "fail" };
+  const events: AStepEvent[] = [];
+
+  while (open.length > 0) {
+    open.sort((a, b) => a.g + a.h - (b.g + b.h));
+    const cur = open.shift()!;
+    const key = `${cur.r},${cur.c}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    if (cur !== start && cur !== end) events.push({ type: "close", r: cur.r, c: cur.c });
+    if (cur.r === er && cur.c === ec) {
+      const path: [number, number][] = [];
+      let n: AStarNode | null = cur;
+      while (n) {
+        path.unshift([n.r, n.c]);
+        n = n.parent;
+      }
+      events.push({ type: "path", cells: path });
+      return events;
+    }
+    const dirs = [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ];
+    for (const [dr, dc] of dirs) {
+      const nr = cur.r + dr,
+        nc = cur.c + dc;
+      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+      const nb = nodes[nr][nc];
+      if (nb.state === "wall" || visited.has(`${nr},${nc}`)) continue;
+      const ng = cur.g + 1;
+      if (ng < nb.g) {
+        nb.g = ng;
+        nb.h = heuristic(nb, end);
+        nb.parent = cur;
+        open.push(nb);
+        if (nb !== end) events.push({ type: "open", r: nr, c: nc });
+      }
+    }
+  }
+  events.push({ type: "fail" });
+  return events;
+}
+
+function makeRandomGrid(): {
+  grid: AStarNodeState[][];
+  sr: number;
+  sc: number;
+  er: number;
+  ec: number;
+} {
+  const grid: AStarNodeState[][] = Array.from({ length: GRID_ROWS }, () =>
+    Array(GRID_COLS).fill("empty"),
+  );
+  // scatter walls ~28%
+  for (let r = 0; r < GRID_ROWS; r++)
+    for (let c = 0; c < GRID_COLS; c++) if (Math.random() < 0.28) grid[r][c] = "wall";
+  const sr = Math.floor(Math.random() * GRID_ROWS),
+    sc = 0;
+  const er = Math.floor(Math.random() * GRID_ROWS),
+    ec = GRID_COLS - 1;
+  grid[sr][sc] = "start";
+  grid[er][ec] = "end";
+  // clear 3x3 around start/end
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++) {
+      const r1 = sr + dr,
+        c1 = sc + dc;
+      if (r1 >= 0 && r1 < GRID_ROWS && c1 >= 0 && c1 < GRID_COLS && grid[r1][c1] !== "start")
+        grid[r1][c1] = "empty";
+      const r2 = er + dr,
+        c2 = ec + dc;
+      if (r2 >= 0 && r2 < GRID_ROWS && c2 >= 0 && c2 < GRID_COLS && grid[r2][c2] !== "end")
+        grid[r2][c2] = "empty";
+    }
+  return { grid, sr, sc, er, ec };
+}
+
+function AStarScene() {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const [restartKey, setRestartKey] = useState(0);
+  const [hudText, setHudText] = useState("Searching…");
+
+  useEffect(() => {
+    const el = mountRef.current;
+    if (!el) return;
+    setHudText("Searching…");
+    const W = el.clientWidth || 1,
+      H = el.clientHeight || 1;
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(new THREE.Color("#05060d"), 12, 26);
+    const camera = new THREE.PerspectiveCamera(46, W / H, 0.1, 100);
+    camera.position.set(0, 5.2, 7.5);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(W, H);
+    renderer.setClearColor(0x000000, 0);
+    el.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
+    key.position.set(4, 8, 5);
+    scene.add(key);
+    const rimA = new THREE.PointLight(new THREE.Color("#4da3ff"), 12, 20);
+    rimA.position.set(-6, 3, -3);
+    scene.add(rimA);
+    const rimB = new THREE.PointLight(new THREE.Color("#3ddc97"), 8, 18);
+    rimB.position.set(6, -1, 4);
+    scene.add(rimB);
+
+    const world = new THREE.Group();
+    scene.add(world);
+
+    const gridHelper = new THREE.GridHelper(
+      Math.max(GRID_W, GRID_H) + 1,
+      20,
+      new THREE.Color("#1a2d50"),
+      new THREE.Color("#0e1a30"),
+    );
+    (gridHelper.material as THREE.Material).transparent = true;
+    (gridHelper.material as THREE.Material).opacity = 0.3;
+    gridHelper.position.y = -0.26;
+    world.add(gridHelper);
+
+    // Particle backdrop
+    const pCount = 160;
+    const pPos = new Float32Array(pCount * 3);
+    for (let i = 0; i < pCount; i++) {
+      pPos[i * 3] = (Math.random() - 0.5) * 18;
+      pPos[i * 3 + 1] = (Math.random() - 0.5) * 7;
+      pPos[i * 3 + 2] = (Math.random() - 0.5) * 10 - 3;
+    }
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
+    const pMat = new THREE.PointsMaterial({
+      color: new THREE.Color("#6a97ff"),
+      size: 0.03,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+    });
+    world.add(new THREE.Points(pGeo, pMat));
+
+    // Build grid
+    const { grid, sr, sc, er, ec } = makeRandomGrid();
+    const events = runAStar(grid, sr, sc, er, ec);
+
+    const C_WALL = new THREE.Color("#0d1526");
+    const C_EMPTY = new THREE.Color("#111d35");
+    const C_START = new THREE.Color("#3ddc97");
+    const C_END = new THREE.Color("#ff6b5e");
+    const C_OPEN = new THREE.Color("#5a7cff");
+    const C_CLOSED = new THREE.Color("#2a3d6b");
+    const C_PATH = new THREE.Color("#ffd34d");
+
+    interface Cell {
+      mesh: THREE.Mesh;
+      mat: THREE.MeshStandardMaterial;
+      state: AStarNodeState;
+      targetColor: THREE.Color;
+      targetY: number;
+      targetEmissive: number;
+    }
+    const cells: Cell[][] = [];
+    const cellGeo = new THREE.BoxGeometry(CELL - 0.04, 0.18, CELL - 0.04);
+    const wallGeo = new THREE.BoxGeometry(CELL - 0.04, 0.44, CELL - 0.04);
+
+    const xOff = (-(GRID_COLS - 1) * CELL) / 2;
+    const zOff = (-(GRID_ROWS - 1) * CELL) / 2;
+
+    for (let r = 0; r < GRID_ROWS; r++) {
+      cells[r] = [];
+      for (let c = 0; c < GRID_COLS; c++) {
+        const s = grid[r][c];
+        const isWall = s === "wall";
+        const mat = new THREE.MeshStandardMaterial({
+          color: s === "wall" ? C_WALL : s === "start" ? C_START : s === "end" ? C_END : C_EMPTY,
+          emissive: s === "start" ? C_START : s === "end" ? C_END : C_EMPTY,
+          emissiveIntensity: s === "start" || s === "end" ? 0.6 : 0.05,
+          roughness: 0.4,
+          metalness: 0.5,
+        });
+        const geo = isWall ? wallGeo : cellGeo;
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(
+          xOff + c * CELL,
+          isWall ? 0.12 : -0.1 + Math.random() * 0.02,
+          zOff + r * CELL,
+        );
+        mesh.scale.set(1, isWall ? 1 : 0.6 + Math.random() * 0.2, 1);
+        world.add(mesh);
+        cells[r][c] = {
+          mesh,
+          mat,
+          state: s,
+          targetColor: mat.color.clone(),
+          targetY: mesh.position.y,
+          targetEmissive: mat.emissiveIntensity,
+        };
+      }
+    }
+
+    // Path/found markers — sphere for start, tetra for end
+    const startSphGeo = new THREE.SphereGeometry(0.14, 12, 12);
+    const startSphMat = new THREE.MeshStandardMaterial({
+      color: C_START,
+      emissive: C_START,
+      emissiveIntensity: 1.2,
+      roughness: 0.2,
+      metalness: 0.4,
+    });
+    const startSph = new THREE.Mesh(startSphGeo, startSphMat);
+    startSph.position.set(xOff + sc * CELL, 0.3, zOff + sr * CELL);
+    world.add(startSph);
+
+    const endTetraGeo = new THREE.OctahedronGeometry(0.15, 0);
+    const endTetraMat = new THREE.MeshStandardMaterial({
+      color: C_END,
+      emissive: C_END,
+      emissiveIntensity: 1.2,
+      roughness: 0.2,
+      metalness: 0.4,
+    });
+    const endTetra = new THREE.Mesh(endTetraGeo, endTetraMat);
+    endTetra.position.set(xOff + ec * CELL, 0.3, zOff + er * CELL);
+    world.add(endTetra);
+
+    // Playback
+    let frame = 0;
+    let eventIdx = 0;
+    const FRAMES_PER_EVENT = 3;
+    let cooldown = 60;
+    let done = false;
+    let pathFound = false;
+
+    let targetYaw = 0,
+      targetPitch = 0.18;
+    let dragging = false,
+      moved = 0,
+      lastX = 0,
+      lastY = 0;
+    const dom = renderer.domElement;
+    dom.style.touchAction = "none";
+    const onPD = (e: PointerEvent) => {
+      dragging = true;
+      moved = 0;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      dom.setPointerCapture(e.pointerId);
+    };
+    const onPM = (e: PointerEvent) => {
+      if (dragging) {
+        const dx = e.clientX - lastX,
+          dy = e.clientY - lastY;
+        moved += Math.abs(dx) + Math.abs(dy);
+        targetYaw += dx * 0.006;
+        targetPitch = THREE.MathUtils.clamp(targetPitch + dy * 0.004, -0.1, 0.6);
+        lastX = e.clientX;
+        lastY = e.clientY;
+      }
+    };
+    const onPU = (e: PointerEvent) => {
+      dragging = false;
+      try {
+        dom.releasePointerCapture(e.pointerId);
+      } catch {
+        /**/
+      }
+    };
+    dom.addEventListener("pointerdown", onPD);
+    dom.addEventListener("pointermove", onPM);
+    dom.addEventListener("pointerup", onPU);
+
+    let animId: number;
+    function animate() {
+      animId = requestAnimationFrame(animate);
+      frame++;
+
+      // apply events
+      if (cooldown > 0) {
+        cooldown--;
+      } else if (!done && frame % FRAMES_PER_EVENT === 0 && eventIdx < events.length) {
+        const ev = events[eventIdx++];
+        if (ev.type === "open") {
+          const cell = cells[ev.r][ev.c];
+          cell.targetColor = C_OPEN.clone();
+          cell.targetY = 0.06;
+          cell.targetEmissive = 0.55;
+          cell.state = "open";
+        } else if (ev.type === "close") {
+          const cell = cells[ev.r][ev.c];
+          cell.targetColor = C_CLOSED.clone();
+          cell.targetY = -0.04;
+          cell.targetEmissive = 0.15;
+          cell.state = "closed";
+        } else if (ev.type === "path") {
+          pathFound = true;
+          for (const [pr, pc] of ev.cells) {
+            const cell = cells[pr][pc];
+            if (cell.state !== "start" && cell.state !== "end") {
+              cell.targetColor = C_PATH.clone();
+              cell.targetY = 0.18;
+              cell.targetEmissive = 1.0;
+            }
+          }
+          setHudText(`Path found · ${ev.cells.length} steps`);
+          done = true;
+        } else if (ev.type === "fail") {
+          setHudText("No path found");
+          done = true;
+        }
+        if (!done && eventIdx >= events.length) {
+          done = true;
+        }
+      } else if (done && frame % 300 === 0) {
+        // auto-restart after pause
+        setRestartKey((k) => k + 1);
+      }
+
+      // smooth lerp all cells
+      for (let r = 0; r < GRID_ROWS; r++)
+        for (let c = 0; c < GRID_COLS; c++) {
+          const cell = cells[r][c];
+          cell.mat.color.lerp(cell.targetColor, 0.18);
+          cell.mat.emissive.lerp(cell.targetColor, 0.18);
+          cell.mat.emissiveIntensity += (cell.targetEmissive - cell.mat.emissiveIntensity) * 0.15;
+          cell.mesh.position.y += (cell.targetY - cell.mesh.position.y) * 0.15;
+        }
+
+      // animate markers
+      startSph.position.y = 0.3 + Math.sin(frame * 0.06) * 0.06;
+      endTetra.rotation.y = frame * 0.04;
+      endTetra.position.y = 0.3 + Math.sin(frame * 0.05 + 1) * 0.06;
+
+      pMat.opacity = 0.35 + 0.1 * Math.sin(frame * 0.008);
+
+      const idle = dragging ? 0 : Math.sin(frame * 0.003) * 0.05;
+      world.rotation.y += (targetYaw + idle - world.rotation.y) * 0.06;
+      world.rotation.x += (targetPitch - world.rotation.x) * 0.06;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    const onResize = () => {
+      const w = el.clientWidth || 1,
+        h = el.clientHeight || 1;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", onResize);
+      dom.removeEventListener("pointerdown", onPD);
+      dom.removeEventListener("pointermove", onPM);
+      dom.removeEventListener("pointerup", onPU);
+      cellGeo.dispose();
+      wallGeo.dispose();
+      startSphGeo.dispose();
+      endTetraGeo.dispose();
+      pGeo.dispose();
+      pMat.dispose();
+      startSphMat.dispose();
+      endTetraMat.dispose();
+      for (let r = 0; r < GRID_ROWS; r++)
+        for (let c = 0; c < GRID_COLS; c++) cells[r][c].mat.dispose();
+      renderer.dispose();
+      if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
+    };
+  }, [restartKey]);
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.6 }}
+      className="space-y-4"
+    >
+      <header className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <h2
+            className="text-xl sm:text-2xl font-bold tracking-tight"
+            style={{ letterSpacing: "-0.025em" }}
+          >
+            A* Pathfinding — Live 3D
+          </h2>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
+            Watch A* explore the grid, then trace the optimal path.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-[11px] font-mono px-2 py-1 rounded-lg"
+            style={{
+              background: "oklch(0.72 0.19 255 / 10%)",
+              color: "oklch(0.72 0.19 255)",
+              border: "1px solid oklch(0.72 0.19 255 / 25%)",
+            }}
+          >
+            {hudText}
+          </span>
+          <button
+            onClick={() => setRestartKey((k) => k + 1)}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+            style={{
+              background: "oklch(0.75 0.18 162 / 16%)",
+              color: "oklch(0.75 0.18 162)",
+              border: "1px solid oklch(0.75 0.18 162 / 35%)",
+            }}
+          >
+            ↺ New grid
+          </button>
+        </div>
+      </header>
+      <div
+        className="relative rounded-2xl overflow-hidden"
+        style={{
+          height: 340,
+          background: "oklch(0.07 0.02 265)",
+          border: "1px solid oklch(1 0 0 / 10%)",
+        }}
+      >
+        <div ref={mountRef} className="absolute inset-0" style={{ cursor: "grab" }} />
+        {/* Legend */}
+        <div className="absolute bottom-3 left-0 right-0 flex flex-wrap justify-center gap-3 pointer-events-none">
+          {[
+            { dot: "#3ddc97", label: "Start ●" },
+            { dot: "#ff6b5e", label: "End ◆" },
+            { dot: "#5a7cff", label: "Open set" },
+            { dot: "#2a3d6b", label: "Closed set" },
+            { dot: "#ffd34d", label: "Path" },
+            { dot: "#0d1526", label: "Wall" },
+          ].map(({ dot, label }) => (
+            <span
+              key={label}
+              className="flex items-center gap-1 text-[10px] font-mono"
+              style={{ color: "oklch(0.50 0.04 255)" }}
+            >
+              <span className="inline-block w-2 h-2 rounded-sm" style={{ background: dot }} />
+              {label}
+            </span>
+          ))}
+        </div>
+        <div
+          className="absolute top-3 right-3 text-[10px] font-mono pointer-events-none"
+          style={{ color: "oklch(0.35 0.04 255)" }}
+        >
+          drag to rotate
+        </div>
+      </div>
+      {/* A* info strip */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {[
+          { label: "Heuristic", value: "Manhattan", color: "oklch(0.75 0.18 162)" },
+          { label: "Complexity", value: "O(b^d)", color: "oklch(0.72 0.19 255)" },
+          { label: "Optimal?", value: "Yes (admissible h)", color: "oklch(0.82 0.18 85)" },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-xl px-3 py-2.5"
+            style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
+          >
+            <div className="text-[10px] font-mono mb-0.5" style={{ color: "oklch(0.45 0.04 255)" }}>
+              {item.label}
+            </div>
+            <div className="text-xs font-bold font-mono" style={{ color: item.color }}>
+              {item.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.section>
+  );
+}
+
+// ─── Static section 1: Algorithm DNA cards ───────────────────────────────────
+const ALGO_DNA = [
+  {
+    name: "Sorting",
+    icon: "⟨⟩",
+    color: "#5a7cff",
+    paradigm: "Comparison / Non-comparison",
+    bestCase: "O(n)",
+    worstCase: "O(n²) – O(n log n)",
+    inPlace: true,
+    stable: "Depends",
+    keyIdea: "Rearrange elements into order by repeatedly comparing & moving.",
+  },
+  {
+    name: "Binary Search",
+    icon: "⌕",
+    color: "#3ddc97",
+    paradigm: "Divide & Conquer",
+    bestCase: "O(1)",
+    worstCase: "O(log n)",
+    inPlace: true,
+    stable: "N/A",
+    keyIdea: "Halve the search space each step — requires sorted input.",
+  },
+  {
+    name: "Graph BFS/DFS",
+    icon: "⬡",
+    color: "#ffd34d",
+    paradigm: "Graph Traversal",
+    bestCase: "O(V+E)",
+    worstCase: "O(V+E)",
+    inPlace: false,
+    stable: "N/A",
+    keyIdea: "Visit all reachable nodes via queue (BFS) or stack (DFS).",
+  },
+  {
+    name: "Dijkstra",
+    icon: "◈",
+    color: "#ff6b5e",
+    paradigm: "Greedy + Priority Queue",
+    bestCase: "O(E log V)",
+    worstCase: "O(E log V)",
+    inPlace: false,
+    stable: "N/A",
+    keyIdea: "Always expand the cheapest unvisited node. No neg weights.",
+  },
+  {
+    name: "A* Search",
+    icon: "✦",
+    color: "#c084fc",
+    paradigm: "Heuristic Search",
+    bestCase: "O(b^d)",
+    worstCase: "O(b^d)",
+    inPlace: false,
+    stable: "N/A",
+    keyIdea: "Dijkstra + admissible heuristic guides toward the goal.",
+  },
+  {
+    name: "Dynamic Prog.",
+    icon: "⊞",
+    color: "#82e0aa",
+    paradigm: "Memoization / Tabulation",
+    bestCase: "Problem-specific",
+    worstCase: "O(n·m)",
+    inPlace: false,
+    stable: "N/A",
+    keyIdea: "Solve overlapping subproblems once; reuse stored answers.",
+  },
+];
+
+function AlgoDNA() {
+  const [active, setActive] = useState<number | null>(null);
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.55 }}
+      className="space-y-4"
+    >
+      <header>
+        <h2
+          className="text-xl sm:text-2xl font-bold tracking-tight"
+          style={{ letterSpacing: "-0.025em" }}
+        >
+          Algorithm DNA
+        </h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
+          Tap any card for the key idea behind each algorithm family.
+        </p>
+      </header>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {ALGO_DNA.map((a, i) => (
+          <motion.div
+            key={a.name}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.06 }}
+            onClick={() => setActive(active === i ? null : i)}
+            className="relative rounded-2xl p-4 cursor-pointer select-none overflow-hidden"
+            style={{
+              background: active === i ? `${a.color}12` : "oklch(0.10 0.02 265)",
+              border: `1px solid ${active === i ? a.color + "50" : "oklch(1 0 0 / 8%)"}`,
+              transition: "background 0.2s, border 0.2s",
+            }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {/* accent bar */}
+            <div
+              className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
+              style={{
+                background: active === i ? a.color : "transparent",
+                transition: "background 0.2s",
+              }}
+            />
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg" style={{ color: a.color }}>
+                {a.icon}
+              </span>
+              <span className="text-xs font-semibold">{a.name}</span>
+            </div>
+            <div className="space-y-1 text-[11px] font-mono">
+              <div className="flex justify-between gap-2">
+                <span style={{ color: "oklch(0.45 0.04 255)" }}>best</span>
+                <span style={{ color: "#3ddc97" }}>{a.bestCase}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span style={{ color: "oklch(0.45 0.04 255)" }}>worst</span>
+                <span style={{ color: "#ff6b5e" }}>{a.worstCase}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span style={{ color: "oklch(0.45 0.04 255)" }}>paradigm</span>
+                <span className="text-right" style={{ color: a.color }}>
+                  {a.paradigm}
+                </span>
+              </div>
+            </div>
+            <AnimatePresence>
+              {active === i && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="overflow-hidden"
+                >
+                  <div
+                    className="mt-3 pt-3 text-[11px] leading-relaxed"
+                    style={{ color: "oklch(0.70 0.04 255)", borderTop: `1px solid ${a.color}30` }}
+                  >
+                    {a.keyIdea}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        ))}
+      </div>
+    </motion.section>
+  );
+}
+
 // ─── Big-O Playground (zoom by wheel, hover tooltips) ────────────────────────
 type Complexity = { name: string; color: string; fn: (n: number) => number };
 const COMPLEXITIES: Complexity[] = [
@@ -1081,7 +1771,7 @@ function BigOPlayground() {
               className="flex items-center gap-1.5 text-[11px] font-mono"
               style={{ color: "oklch(0.7 0.04 255)" }}
             >
-              <span className="w-2.5 h-[2px] rounded-full" style={{ background: c.color }} />
+              <span className="w-2.5 h-0.5 rounded-full" style={{ background: c.color }} />
               {c.name}
             </span>
           ))}
@@ -1303,7 +1993,7 @@ function AlgoVizBar({
         </div>
       </div>
       {/* Bar visualization */}
-      <div className="flex items-end gap-[2px] h-16">
+      <div className="flex items-end gap-0.5 h-16">
         {arr.map((v, i) => {
           const isCmp = f.cmp && (f.cmp[0] === i || f.cmp[1] === i);
           const isSwp = f.swapped && (f.swapped[0] === i || f.swapped[1] === i);
@@ -1869,7 +2559,7 @@ function Timeline() {
               style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
             >
               <span
-                className="absolute -left-[19px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
+                className="absolute -left-4.75 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
                 style={{
                   background: "oklch(0.72 0.19 255)",
                   boxShadow: "0 0 12px oklch(0.72 0.19 255 / 60%)",
@@ -2138,7 +2828,7 @@ function Index() {
           <motion.div
             animate={{ rotate: [0, 360] }}
             transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-20 left-1/2 -translate-x-1/2 w-[680px] h-[680px] rounded-full blur-3xl opacity-10"
+            className="absolute -top-20 left-1/2 -translate-x-1/2 w-170 h-170 rounded-full blur-3xl opacity-10"
             style={{
               background:
                 "conic-gradient(from 0deg, oklch(0.72 0.19 255), oklch(0.75 0.18 162), oklch(0.82 0.18 85), oklch(0.72 0.19 255))",
@@ -2306,6 +2996,9 @@ function Index() {
         ))}
       </motion.div>
 
+      {/* Algorithm DNA */}
+      <AlgoDNA />
+
       {/* Big-O Playground (new) */}
       <BigOPlayground />
 
@@ -2351,7 +3044,7 @@ function Index() {
                 }}
               >
                 <div
-                  className="absolute top-0 left-0 right-0 h-[1px]"
+                  className="absolute top-0 left-0 right-0 h-px"
                   style={{
                     background: `linear-gradient(90deg, transparent, ${c.accent}, transparent)`,
                   }}
@@ -2404,6 +3097,9 @@ function Index() {
 
       {/* New animated section #1 */}
       <SortRace />
+
+      {/* A* Pathfinding Three.js */}
+      <AStarScene />
 
       {/* Features */}
       <motion.section
