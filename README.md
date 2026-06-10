@@ -1,177 +1,143 @@
-# AlgoViz — Interactive Algorithm Visualizer
+# AlgoViz — Interactive Algorithm Visualizer with C++ Source
 
-A modern, interactive algorithm visualizer built with **TanStack Start**, **React 19**, **TypeScript**, **Tailwind CSS v4**, **Framer Motion** and **Three.js**. Every visualization is paired with a clean **C++ STL** reference implementation with line-by-line highlighting of the currently-executing step.
+> Step through 60+ classic algorithms in real-time and read the matching C++ STL implementation line-by-line as it runs.
 
-> Live, step-by-step animations for 45+ classic algorithms across sorting, searching, pathfinding, graphs, dynamic programming, strings, trees and backtracking — all in your browser.
+AlgoViz is a single-page application built with **TanStack Start v1**, **React 19**, **Tailwind CSS v4**, **Framer Motion** and **Three.js**. Every visualization is paired with a clean, well-commented C++/STL reference implementation that highlights the currently-executing line as the animation plays.
 
 ---
 
 ## ✨ Features
 
-- **Step-by-step playback** — play, pause, step forward/back, scrubbing speed slider
-- **Synced C++ STL source code** with line highlighting as the visualization runs
-- **3D Three.js hero scene** — interactive Quick Sort visualizer (drag to rotate, click bars to shuffle)
-- **Big-O playground** — drag a slider to compare growth rates of O(1), O(log n), O(n), O(n log n), O(n²)
-- **Live sort race** — four sorting algorithms compete on the same array, side-by-side
-- **Algorithm spotlight** — auto-rotating hero tile featuring one algorithm at a time
-- **Fancy animated 404** — pathfinding-style grid backdrop with glitch text
-- **Fully responsive** — works on phones, tablets and large monitors
-- **Custom inputs** — type arrays, draw walls on grids, pick from sample graphs
-- **Complexity badges** — time and space complexity shown on every code panel
+- 🎞 **60+ algorithms** across 11 categories (sorting, searching, graphs, trees, pathfinding, DP, strings, backtracking, math, data structures, library).
+- 🧊 **Three.js hero** — a 3-D visualizer that animates **Quick Sort** *and* **Binary Search** (toggle in the top-right of the canvas). Slowed-down playback, drag-to-rotate, click-to-restart.
+- 📈 **Big-O Playground** — interactive complexity chart with **mouse-wheel zoom** and **hover tooltips** showing live values for O(1), O(log n), O(n), O(n log n) and O(n²).
+- 🏁 **Live Sort Race** — compares Bubble / Insertion / Selection / Quick on the same random seed.
+- 🔦 **Algorithm Spotlight** — auto-rotating cards.
+- 📊 **Complexity table**, animated **pseudocode stepper**, **algorithm timeline**.
+- 🛠 **Synced C++ code panel** — line numbers light up while the animation runs; one-click copy / download.
+- 🎨 **Fancy animated 404** — BFS-ripple canvas + glitch text + scanline overlay.
 
 ---
 
-## 🧠 Algorithm catalog
+## 🧠 Algorithms covered
 
 ### Sorting (13)
 Bubble · Selection · Insertion · Merge · **Quick** · Heap · Shell · Counting · Radix · Cocktail · Gnome · Comb · Cycle
 
 ### Searching (6)
-Linear · Binary · Jump · Interpolation · Exponential · Ternary
+Linear · **Binary** · Jump · Exponential · Ternary · Interpolation
 
-### Pathfinding (3) — on editable grids
-BFS · **Dijkstra** · **A\***
-
-### Graph algorithms (9)
+### Graph (9)
 DFS · BFS · Topological Sort · Cycle Detection · **Dijkstra** · **Bellman-Ford** · **Floyd-Warshall** · **Prim MST** · **Kruskal MST**
 
-### Dynamic Programming (6)
-Fibonacci · LCS · 0/1 Knapsack · Edit Distance · Coin Change · LIS
+### Pathfinding (3)
+BFS · Dijkstra · **A\***
 
-### String algorithms (4)
-Naive · KMP · Rabin-Karp · Z-Algorithm
+### Trees (4) · Strings (4) · DP (6) · Backtracking (3)
+BFS / DFS-In / Pre / Post  ·  Naive / KMP / Rabin-Karp / Z-Algorithm  ·  Fibonacci / LCS / Knapsack / Edit Distance / Coin Change / LIS  ·  N-Queens / Knight's Tour / Tower of Hanoi
 
-### Tree traversals (4)
-Inorder · Preorder · Postorder · Level-order (BFS)
-
-### Backtracking / Recursion
-N-Queens · Knight's Tour (Warnsdorff) · Tower of Hanoi
+### Library (15 new — C++ reference only)
+Boyer-Moore · Manacher · Sieve of Eratosthenes · Euclidean GCD (with ext-gcd) · Fast Modular Exponentiation · Matrix Chain Multiplication · Rod Cutting · Subset Sum · Union-Find (DSU) · Fenwick Tree (BIT) · Segment Tree · Kosaraju SCC · Tarjan Bridges · Bipartite Check · Morris Inorder Traversal
 
 ---
 
-## 🚀 Quick start
-
-Requires **Node.js 20+** (Bun is also supported).
+## 🚀 Getting started
 
 ```bash
-# 1. install dependencies (npm, pnpm, bun all work — pick one)
-npm install
+# 1. install
+npm install        # (or: bun install / pnpm install)
 
-# 2. start the dev server
-npm run dev
+# 2. run dev server
+npm run dev        # → http://localhost:5173
 
-# 3. open the printed URL (usually http://localhost:5173)
+# 3. production build
+npm run build
+npm run start
 ```
 
-### Other scripts
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Vite dev server with HMR |
-| `npm run build` | Production build |
-| `npm run build:dev` | Development-mode build (used by the platform) |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format with Prettier |
+> ℹ️ The repo also works with `bun`; a `bunfig.toml` is included. If you prefer bun:
+> `bun install && bun run dev`.
 
 ---
 
-## 🛠 Tech stack
-
-- **[TanStack Start](https://tanstack.com/start)** v1 — full-stack React framework with file-based routing
-- **[TanStack Router](https://tanstack.com/router)** — type-safe client routing
-- **[TanStack Query](https://tanstack.com/query)** — data fetching primitives
-- **React 19** + **TypeScript** (strict)
-- **Vite 7** — build tool
-- **Tailwind CSS v4** (configured via `@import` in `src/styles.css`)
-- **Framer Motion 12** — interactive animations
-- **Three.js 0.176** — 3D Quick-Sort hero scene
-- **Radix UI** + **shadcn/ui** — accessible component primitives
-- **Lucide React** — icons
-
----
-
-## 📁 Project structure
+## 🗂 Project structure
 
 ```
-src/
-├── routes/                      ← TanStack file-based routing
-│   ├── __root.tsx               ← root layout, nav, fancy animated 404
-│   ├── index.tsx                ← landing page (Three.js hero + interactive sections)
-│   ├── sorting.tsx
-│   ├── searching.tsx
-│   ├── pathfinding.tsx
-│   ├── graph.tsx
-│   ├── dp.tsx
-│   ├── strings.tsx
-│   ├── tree.tsx
-│   ├── nqueens.tsx
-│   ├── knights.tsx
-│   └── hanoi.tsx
-├── components/
-│   ├── Nav.tsx
-│   ├── PythonCodePanel.tsx      ← C++ STL panel with line highlighting
-│   ├── viz/Controls.tsx         ← play/pause/step/speed controls
-│   └── ui/                      ← shadcn/ui primitives
-├── lib/
-│   ├── algorithms/              ← generator-based algorithm steppers
-│   │   ├── sorting.ts
-│   │   ├── searching.ts
-│   │   ├── pathfinding.ts       ← BFS, Dijkstra, A*
-│   │   ├── graph.ts             ← DFS, BFS, Topo, Cycle, Dijkstra,
-│   │   │                          Bellman-Ford, Floyd-Warshall, Prim, Kruskal
-│   │   ├── tree.ts
-│   │   ├── dp.ts
-│   │   ├── strings.ts
-│   │   ├── backtracking.ts
-│   │   ├── lineMaps.ts          ← runtime-step → highlighted source line
-│   │   └── python.ts            ← C++ STL reference snippets (legacy filename)
-│   └── usePlayer.ts             ← shared playback hook
-├── styles.css                   ← design tokens + animations (Tailwind v4)
-└── router.tsx
+algorithm-visualizer-main/
+├── public/                       static assets, icons, manifest
+├── src/
+│   ├── components/
+│   │   ├── Nav.tsx               sticky top nav
+│   │   ├── PythonCodePanel.tsx   C++ code viewer (line-highlight + copy)
+│   │   └── viz/Controls.tsx      shared player controls
+│   ├── hooks/                    React helpers
+│   ├── lib/
+│   │   ├── algorithms/
+│   │   │   ├── sorting.ts        sort generators (yield steps)
+│   │   │   ├── searching.ts
+│   │   │   ├── tree.ts
+│   │   │   ├── graph.ts          + Bellman-Ford / Floyd-Warshall / Kruskal
+│   │   │   ├── pathfinding.ts    BFS / Dijkstra / A* on a grid
+│   │   │   ├── dp.ts
+│   │   │   ├── strings.ts
+│   │   │   ├── backtracking.ts
+│   │   │   ├── lineMaps.ts       step → C++ line mapper
+│   │   │   └── python.ts         C++ snippets (despite filename)
+│   │   ├── usePlayer.ts          play / pause / step machinery
+│   │   └── …                     error reporting, utils
+│   ├── routes/
+│   │   ├── __root.tsx            shell + fancy 404
+│   │   ├── index.tsx             homepage (Three.js + Big-O playground + 5 new sections)
+│   │   ├── sorting.tsx · searching.tsx · graph.tsx · tree.tsx
+│   │   ├── pathfinding.tsx · dp.tsx · strings.tsx
+│   │   ├── nqueens.tsx · knights.tsx · hanoi.tsx
+│   │   └── library.tsx           NEW – 15 extra algorithms with C++
+│   ├── styles.css                Tailwind v4 + glitch / scanline keyframes
+│   └── router.tsx · server.ts · start.ts
+├── package.json · vite.config.ts · tsconfig.json
+└── README.md
 ```
 
-### How the visualizers work
+---
 
-Every algorithm is implemented as a TypeScript **generator** that yields a `Step` object describing the current state (which indices are being compared, which cell is being visited, the current path, …). A small `usePlayer` hook drives the generator at a configurable speed, exposing `play / pause / step / reset / index / total` to the route component. The page renders the current step with **Framer Motion**, and a `PythonCodePanel` highlights the matching C++ STL line via `lineMaps.ts`.
+## 🧩 Tech stack
 
-Adding a new algorithm is three steps:
-
-1. Implement a `function* myAlgo(input): Generator<Step>` in the right file under `src/lib/algorithms/`.
-2. Register it in the corresponding `*_ALGOS` map.
-3. (Optional) Add a C++ snippet to `python.ts` and a step→line mapper to `lineMaps.ts`.
+| Layer       | Choice                                        |
+| ----------- | --------------------------------------------- |
+| Framework   | TanStack Start v1 (React 19, Vite 7, SSR-ready) |
+| Styling     | Tailwind CSS v4 (CSS-first via `src/styles.css`) |
+| Animations  | Framer Motion (sections), Three.js (hero)     |
+| State       | TanStack Query, custom `usePlayer` hook        |
+| C++ code    | Plain strings, line-highlighted at runtime    |
+| Deploy      | Designed for Cloudflare Workers (workerd)     |
 
 ---
 
-## 🎨 Design system
+## 🔧 Adding a new algorithm
 
-All colors, gradients and motion live in `src/styles.css` as semantic CSS custom properties (oklch). Components reference tokens via Tailwind utility classes — never hard-coded hex/named colors. The look is intentionally dark, glassy and editorial, with shimmery primary text and soft auroras behind the hero.
+1. **Implement a generator** in `src/lib/algorithms/<section>.ts` that `yield`s step objects describing what to render.
+2. **Register** the algorithm in that file's `*_ALGOS` map and its type union.
+3. **Map steps → C++ source lines** in `src/lib/algorithms/lineMaps.ts`.
+4. **Add the C++ snippet** to `src/lib/algorithms/python.ts` under the matching section.
+5. The corresponding `src/routes/<section>.tsx` page will pick it up automatically.
 
----
-
-## 🌐 Routing
-
-| Path | Page |
-| --- | --- |
-| `/` | Landing with Three.js hero + interactive sections |
-| `/sorting` | 13 sorting algorithms |
-| `/searching` | 6 searching algorithms |
-| `/pathfinding` | BFS · Dijkstra · A\* on editable grid |
-| `/graph` | 9 graph algorithms |
-| `/dp` | Dynamic programming |
-| `/strings` | String matching |
-| `/tree` | Tree traversals |
-| `/nqueens` | N-Queens backtracking |
-| `/knights` | Knight's Tour (Warnsdorff) |
-| `/hanoi` | Tower of Hanoi |
-| `*` | Fancy animated 404 page |
+For non-visualized algorithms (math, data structures, advanced graph), drop the C++ snippet into the `library` section of `python.ts` and update `CATEGORIES` in `src/routes/library.tsx`.
 
 ---
 
-## 🤝 Contributing
+## 🧰 Scripts
 
-PRs are welcome. Please keep new algorithms in the generator-step format so they plug into the shared player and code-panel infrastructure.
+| Script            | Purpose                              |
+| ----------------- | ------------------------------------ |
+| `npm run dev`     | start Vite dev server                |
+| `npm run build`   | production build                     |
+| `npm run start`   | run the built server                 |
+| `npm run lint`    | ESLint                               |
 
-## 📄 License
+---
 
-MIT
+## 📝 License
+
+MIT — fork, learn, teach, contribute.
+
+Made with ❤ for everyone trying to understand algorithms.

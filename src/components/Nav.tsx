@@ -12,6 +12,7 @@ const links = [
   { to: "/nqueens", label: "N-Queens", icon: "♛", color: "oklch(0.82 0.18 85)" },
   { to: "/knights", label: "Knight's Tour", icon: "♞", color: "oklch(0.72 0.22 180)" },
   { to: "/hanoi", label: "Hanoi", icon: "⌬", color: "oklch(0.75 0.18 310)" },
+  { to: "/library", label: "Library", icon: "📚", color: "oklch(0.75 0.18 162)" },
 ] as const;
 
 export function Nav() {

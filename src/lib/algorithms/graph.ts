@@ -143,109 +143,88 @@ export function* primMST(g: Graph): Generator<GraphStep> {
   yield { visited: [...visited], highlight: mstEdges, message: `MST complete — ${mstEdges.length} edges` };
 }
 
-// ─── Bellman-Ford: single-source shortest paths, handles negative weights ───
+// ── Bellman-Ford: shortest path with negative-edge tolerance ──
 export function* bellmanFord(g: Graph, startId = 0): Generator<GraphStep> {
   const dist = new Map<number, number>(g.nodes.map(n => [n.id, Infinity]));
   dist.set(startId, 0);
   const visited: number[] = [startId];
-  yield { visited: [...visited], visiting: startId, message: `dist[${startId}] = 0` };
-  const n = g.nodes.length;
-  for (let i = 0; i < n - 1; i++) {
-    let updated = false;
+  yield { visited: [...visited], visiting: startId, message: `Init: dist[${startId}] = 0` };
+  for (let i = 0; i < g.nodes.length - 1; i++) {
+    let relaxed = false;
     for (const e of g.edges) {
       const w = e.weight ?? 1;
-      const tryRelax = (from: number, to: number) => {
-        const du = dist.get(from) ?? Infinity;
-        if (du + w < (dist.get(to) ?? Infinity)) {
-          dist.set(to, du + w);
-          if (!visited.includes(to)) visited.push(to);
-          return true;
-        }
-        return false;
-      };
-      if (tryRelax(e.from, e.to)) updated = true;
-      if (!g.directed && tryRelax(e.to, e.from)) updated = true;
+      const du = dist.get(e.from)!;
+      if (du !== Infinity && du + w < (dist.get(e.to) ?? Infinity)) {
+        dist.set(e.to, du + w); relaxed = true;
+        if (!visited.includes(e.to)) visited.push(e.to);
+        yield { visited: [...visited], visiting: e.to, highlight: [[e.from, e.to]], message: `Relax ${e.from}→${e.to}: dist=${du + w}` };
+      }
     }
-    yield { visited: [...visited], message: `Pass ${i + 1}: ${updated ? "relaxed edges" : "no updates — early exit"}` };
-    if (!updated) break;
+    if (!relaxed) break;
   }
-  let neg = false;
+  // negative-cycle check
   for (const e of g.edges) {
     const w = e.weight ?? 1;
-    if ((dist.get(e.from) ?? Infinity) + w < (dist.get(e.to) ?? Infinity)) { neg = true; break; }
+    const du = dist.get(e.from)!;
+    if (du !== Infinity && du + w < (dist.get(e.to) ?? Infinity)) {
+      yield { visited: [...visited], highlight: [[e.from, e.to]], message: "⚠ Negative cycle detected" };
+      return;
+    }
   }
-  yield { visited: [...visited], message: neg
-    ? "Negative cycle detected"
-    : `Distances: ` + g.nodes.map(n => `${n.label}=${dist.get(n.id) === Infinity ? "∞" : dist.get(n.id)}`).join(", ") };
+  yield { visited: [...visited], message: `Distances from ${startId}: ` + g.nodes.map(n => `${n.label}=${dist.get(n.id) === Infinity ? "∞" : dist.get(n.id)}`).join(", ") };
 }
 
-// ─── Floyd-Warshall: all-pairs shortest paths ───
+// ── Floyd-Warshall: all-pairs shortest paths ──
 export function* floydWarshall(g: Graph): Generator<GraphStep> {
-  const ids = g.nodes.map(n => n.id);
-  const idx = new Map(ids.map((id, i) => [id, i]));
-  const n = ids.length;
+  const n = g.nodes.length;
+  const idx = new Map(g.nodes.map((nd, i) => [nd.id, i]));
   const D: number[][] = Array.from({ length: n }, () => Array(n).fill(Infinity));
   for (let i = 0; i < n; i++) D[i][i] = 0;
   for (const e of g.edges) {
-    const a = idx.get(e.from)!, b = idx.get(e.to)!, w = e.weight ?? 1;
+    const a = idx.get(e.from)!, b = idx.get(e.to)!;
+    const w = e.weight ?? 1;
     D[a][b] = Math.min(D[a][b], w);
     if (!g.directed) D[b][a] = Math.min(D[b][a], w);
   }
   const visited: number[] = [];
   for (let k = 0; k < n; k++) {
-    visited.push(ids[k]);
-    yield { visited: [...visited], visiting: ids[k], message: `Using ${g.nodes[k].label} as intermediate` };
+    const kid = g.nodes[k].id;
+    if (!visited.includes(kid)) visited.push(kid);
+    yield { visited: [...visited], visiting: kid, message: `Via ${g.nodes[k].label}` };
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       if (D[i][k] + D[k][j] < D[i][j]) D[i][j] = D[i][k] + D[k][j];
     }
   }
-  yield { visited: [...visited], message: `All-pairs shortest paths computed (n=${n})` };
+  const summary = g.nodes.map(n0 => `${n0.label}:[${g.nodes.map((m, j) => (D[idx.get(n0.id)!][j] === Infinity ? "∞" : D[idx.get(n0.id)!][j])).join(",")}]`).join("  ");
+  yield { visited: [...visited], message: "All-pairs done · " + summary.slice(0, 120) };
 }
 
-// ─── Kruskal's MST with union-find ───
+// ── Kruskal MST: union-find based ──
 export function* kruskalMST(g: Graph): Generator<GraphStep> {
   const parent = new Map<number, number>(g.nodes.map(n => [n.id, n.id]));
-  const find = (x: number): number => {
-    const p = parent.get(x)!;
-    if (p === x) return x;
-    const r = find(p);
-    parent.set(x, r);
-    return r;
-  };
-  const union = (a: number, b: number) => {
-    const ra = find(a), rb = find(b);
-    if (ra === rb) return false;
-    parent.set(ra, rb);
-    return true;
-  };
+  function find(x: number): number { while (parent.get(x)! !== x) { parent.set(x, parent.get(parent.get(x)!)!); x = parent.get(x)!; } return x; }
+  function union(a: number, b: number): boolean { const ra = find(a), rb = find(b); if (ra === rb) return false; parent.set(ra, rb); return true; }
   const sorted = [...g.edges].sort((a, b) => (a.weight ?? 1) - (b.weight ?? 1));
-  const mstEdges: [number, number][] = [];
+  const mst: [number, number][] = [];
   const visited: number[] = [];
+  yield { visited: [], message: `Sorted ${sorted.length} edges by weight` };
   for (const e of sorted) {
-    const w = e.weight ?? 1;
     if (union(e.from, e.to)) {
+      mst.push([e.from, e.to]);
       if (!visited.includes(e.from)) visited.push(e.from);
       if (!visited.includes(e.to)) visited.push(e.to);
-      mstEdges.push([e.from, e.to]);
-      yield { visited: [...visited], visiting: e.to, highlight: [...mstEdges], message: `Accept (${e.from}↔${e.to}) w=${w}` };
-    } else {
-      yield { visited: [...visited], highlight: [...mstEdges], message: `Reject (${e.from}↔${e.to}) w=${w} — cycle` };
+      yield { visited: [...visited], visiting: e.to, highlight: [...mst], message: `Add (${e.from}↔${e.to}) w=${e.weight ?? 1}` };
     }
-    if (mstEdges.length === g.nodes.length - 1) break;
+    if (mst.length === g.nodes.length - 1) break;
   }
-  yield { visited: [...visited], highlight: [...mstEdges], message: `Kruskal MST complete — ${mstEdges.length} edges` };
+  yield { visited: [...visited], highlight: mst, message: `MST complete — ${mst.length} edges` };
 }
 
 export const GRAPH_ALGOS = {
-  "DFS": dfsGraph,
-  "BFS": bfsGraph,
-  "Topological Sort": topoSort,
-  "Cycle Detection": cycleDetection,
-  "Dijkstra": dijkstraGraph,
-  "Bellman-Ford": bellmanFord,
-  "Floyd-Warshall": floydWarshall,
-  "Prim MST": primMST,
-  "Kruskal MST": kruskalMST,
+  "DFS": dfsGraph, "BFS": bfsGraph, "Topological Sort": topoSort,
+  "Cycle Detection": cycleDetection, "Dijkstra": dijkstraGraph,
+  "Bellman-Ford": bellmanFord, "Floyd-Warshall": floydWarshall,
+  "Prim MST": primMST, "Kruskal MST": kruskalMST,
 } as const;
 export type GraphAlgoName = keyof typeof GRAPH_ALGOS;
 
@@ -283,18 +262,17 @@ export const SAMPLE_GRAPHS: Record<string, Graph> = {
       { from:4, to:3, weight:1 }, { from:4, to:5, weight:4 },
     ],
   },
-  "Negative edges (Bellman-Ford)": {
+  "Negative edges (BF)": {
     directed: true,
     nodes: [
-      { id: 0, label: "S", x: 80, y: 160 }, { id: 1, label: "A", x: 230, y: 70 },
-      { id: 2, label: "B", x: 230, y: 250 }, { id: 3, label: "C", x: 400, y: 70 },
-      { id: 4, label: "D", x: 400, y: 250 }, { id: 5, label: "T", x: 540, y: 160 },
+      { id: 0, label: "S", x: 80,  y: 160 }, { id: 1, label: "A", x: 220, y: 70 },
+      { id: 2, label: "B", x: 220, y: 250 }, { id: 3, label: "C", x: 380, y: 70 },
+      { id: 4, label: "D", x: 380, y: 250 }, { id: 5, label: "T", x: 520, y: 160 },
     ],
     edges: [
-      { from:0, to:1, weight:6 }, { from:0, to:2, weight:7 },
-      { from:1, to:2, weight:8 }, { from:1, to:3, weight:5 }, { from:1, to:4, weight:-4 },
-      { from:2, to:3, weight:-3 }, { from:2, to:4, weight:9 },
-      { from:3, to:1, weight:-2 }, { from:4, to:5, weight:7 }, { from:3, to:5, weight:3 },
+      { from:0, to:1, weight:6 }, { from:0, to:2, weight:7 }, { from:1, to:2, weight:8 },
+      { from:1, to:3, weight:5 }, { from:1, to:4, weight:-4 }, { from:2, to:3, weight:-3 },
+      { from:2, to:4, weight:9 }, { from:3, to:5, weight:7 },  { from:4, to:5, weight:2 },
     ],
   },
 };

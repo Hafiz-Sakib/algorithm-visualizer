@@ -1,96 +1,66 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion, useScroll, useTransform, type Variants } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, type Variants } from "framer-motion";
 import { useRef, useEffect, useState, useMemo } from "react";
 import * as THREE from "three";
 
-export const Route = createFileRoute("/")(
-  {
-    head: () => ({
-      meta: [
-        { title: "AlgoViz — Interactive Algorithm Visualizer with C++ Source" },
-        { name: "description", content: "Visualize 40+ classic algorithms with step-by-step animations and synced C++ STL source code. Sorting, searching, graphs, DP and more." },
-        { property: "og:title", content: "AlgoViz — Interactive Algorithm Visualizer" },
-        { property: "og:description", content: "Watch algorithms come to life with smooth animations and line-by-line C++ source." },
-      ],
-    }),
-    component: Index,
-  }
-);
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "AlgoViz — Interactive Algorithm Visualizer with C++ Source" },
+      { name: "description", content: "Visualize 60+ classic algorithms with smooth animations and synced C++ STL source code — sorting, searching, graphs, DP, pathfinding and more." },
+      { property: "og:title", content: "AlgoViz — Interactive Algorithm Visualizer" },
+      { property: "og:description", content: "Watch algorithms come to life with smooth animations and line-by-line C++ source." },
+    ],
+  }),
+  component: Index,
+});
 
-// ─── Three.js interactive 3D Quick-Sort visualizer ───────────────────────────
-const HERO_ALGOS = ["Quick"] as const;
-type HeroAlgo = (typeof HERO_ALGOS)[number];
-
+// ─── Three.js: Quick Sort + Binary Search animations ─────────────────────────
+type HeroMode = "Quick Sort" | "Binary Search";
 type SortStep =
   | { type: "compare"; i: number; j: number }
   | { type: "swap"; i: number; j: number }
   | { type: "sorted"; i: number };
 
-function genSortSteps(algo: string, input: number[]): SortStep[] {
+type SearchStep =
+  | { type: "range"; lo: number; hi: number }
+  | { type: "probe"; mid: number }
+  | { type: "found"; mid: number }
+  | { type: "miss" };
+
+function genQuickSteps(input: number[]): SortStep[] {
   const a = [...input];
-  const n = a.length;
   const steps: SortStep[] = [];
   const cmp = (i: number, j: number) => steps.push({ type: "compare", i, j });
-  const swp = (i: number, j: number) => {
-    [a[i], a[j]] = [a[j], a[i]];
-    steps.push({ type: "swap", i, j });
+  const swp = (i: number, j: number) => { [a[i], a[j]] = [a[j], a[i]]; steps.push({ type: "swap", i, j }); };
+  const qs = (lo: number, hi: number) => {
+    if (lo >= hi) { if (lo === hi) steps.push({ type: "sorted", i: lo }); return; }
+    const pivot = a[hi];
+    let i = lo - 1;
+    for (let j = lo; j < hi; j++) {
+      cmp(j, hi);
+      if (a[j] <= pivot) { i++; if (i !== j) swp(i, j); }
+    }
+    if (i + 1 !== hi) swp(i + 1, hi);
+    steps.push({ type: "sorted", i: i + 1 });
+    qs(lo, i); qs(i + 2, hi);
   };
+  qs(0, a.length - 1);
+  return steps;
+}
 
-  if (algo === "Bubble") {
-    for (let i = 0; i < n - 1; i++) {
-      for (let j = 0; j < n - 1 - i; j++) {
-        cmp(j, j + 1);
-        if (a[j] > a[j + 1]) swp(j, j + 1);
-      }
-      steps.push({ type: "sorted", i: n - 1 - i });
-    }
-    steps.push({ type: "sorted", i: 0 });
-  } else if (algo === "Selection") {
-    for (let i = 0; i < n - 1; i++) {
-      let mn = i;
-      for (let j = i + 1; j < n; j++) {
-        cmp(mn, j);
-        if (a[j] < a[mn]) mn = j;
-      }
-      if (mn !== i) swp(i, mn);
-      steps.push({ type: "sorted", i });
-    }
-    steps.push({ type: "sorted", i: n - 1 });
-  } else if (algo === "Insertion") {
-    for (let i = 1; i < n; i++) {
-      let j = i;
-      while (j > 0) {
-        cmp(j - 1, j);
-        if (a[j - 1] > a[j]) {
-          swp(j - 1, j);
-          j--;
-        } else break;
-      }
-    }
-    for (let i = 0; i < n; i++) steps.push({ type: "sorted", i });
-  } else {
-    // Quick (Lomuto)
-    const qs = (lo: number, hi: number) => {
-      if (lo >= hi) {
-        if (lo === hi) steps.push({ type: "sorted", i: lo });
-        return;
-      }
-      const pivot = a[hi];
-      let i = lo - 1;
-      for (let j = lo; j < hi; j++) {
-        cmp(j, hi);
-        if (a[j] <= pivot) {
-          i++;
-          if (i !== j) swp(i, j);
-        }
-      }
-      if (i + 1 !== hi) swp(i + 1, hi);
-      steps.push({ type: "sorted", i: i + 1 });
-      qs(lo, i);
-      qs(i + 2, hi);
-    };
-    qs(0, n - 1);
+function genBinarySearchSteps(sorted: number[], target: number): SearchStep[] {
+  const steps: SearchStep[] = [];
+  let lo = 0, hi = sorted.length - 1;
+  steps.push({ type: "range", lo, hi });
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    steps.push({ type: "probe", mid });
+    if (sorted[mid] === target) { steps.push({ type: "found", mid }); return steps; }
+    if (sorted[mid] < target) lo = mid + 1; else hi = mid - 1;
+    steps.push({ type: "range", lo, hi });
   }
+  steps.push({ type: "miss" });
   return steps;
 }
 
@@ -98,7 +68,7 @@ const BAR_COUNT = 16;
 
 function ThreeScene() {
   const mountRef = useRef<HTMLDivElement>(null);
-  const algo: HeroAlgo = "Quick";
+  const [mode, setMode] = useState<HeroMode>("Quick Sort");
   const [shuffleKey, setShuffleKey] = useState(0);
 
   useEffect(() => {
@@ -108,7 +78,6 @@ function ThreeScene() {
     const W = el.clientWidth || 1;
     const H = el.clientHeight || 1;
 
-    // ── Scene / camera / renderer ──────────────────────────────────────
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(new THREE.Color("#05060d"), 9, 18);
 
@@ -121,23 +90,17 @@ function ThreeScene() {
     renderer.setClearColor(0x000000, 0);
     el.appendChild(renderer.domElement);
 
-    // ── Lights ─────────────────────────────────────────────────────────
     scene.add(new THREE.AmbientLight(0xffffff, 0.45));
     const key = new THREE.DirectionalLight(0xffffff, 1.4);
-    key.position.set(3, 6, 4);
-    scene.add(key);
+    key.position.set(3, 6, 4); scene.add(key);
     const rim = new THREE.PointLight(new THREE.Color("#4da3ff"), 14, 22);
-    rim.position.set(-5, 3, -4);
-    scene.add(rim);
+    rim.position.set(-5, 3, -4); scene.add(rim);
     const rim2 = new THREE.PointLight(new THREE.Color("#3ddc97"), 9, 20);
-    rim2.position.set(5, -1, 3);
-    scene.add(rim2);
+    rim2.position.set(5, -1, 3); scene.add(rim2);
 
-    // ── World group (drag-rotates) ─────────────────────────────────────
     const world = new THREE.Group();
     scene.add(world);
 
-    // Floor grid
     const grid = new THREE.GridHelper(14, 28, new THREE.Color("#27406b"), new THREE.Color("#141d33"));
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.35;
@@ -155,45 +118,45 @@ function ThreeScene() {
     const pGeo = new THREE.BufferGeometry();
     pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
     const pMat = new THREE.PointsMaterial({
-      color: new THREE.Color("#7aa7ff"),
-      size: 0.035,
-      transparent: true,
-      opacity: 0.45,
-      depthWrite: false,
+      color: new THREE.Color("#7aa7ff"), size: 0.035,
+      transparent: true, opacity: 0.45, depthWrite: false,
     });
     const particles = new THREE.Points(pGeo, pMat);
     world.add(particles);
 
-    // ── Sorting bars ───────────────────────────────────────────────────
+    // ── Bars ──
     const SPACING = 0.46;
     const X0 = -((BAR_COUNT - 1) * SPACING) / 2;
     const xAt = (slot: number) => X0 + slot * SPACING;
-    const hOf = (v: number) => 0.45 + v * 2.6; // v in (0,1]
+    const hOf = (v: number) => 0.45 + v * 2.6;
 
-    // values 1..BAR_COUNT shuffled
-    const values = Array.from({ length: BAR_COUNT }, (_, i) => (i + 1) / BAR_COUNT);
-    for (let i = values.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [values[i], values[j]] = [values[j], values[i]];
+    const initialValues = Array.from({ length: BAR_COUNT }, (_, i) => (i + 1) / BAR_COUNT);
+    if (mode === "Quick Sort") {
+      // shuffle for sort
+      for (let i = initialValues.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [initialValues[i], initialValues[j]] = [initialValues[j], initialValues[i]];
+      }
     }
+    // Binary Search keeps the array sorted ascending
 
     interface Bar {
-      mesh: THREE.Mesh;
-      mat: THREE.MeshStandardMaterial;
-      value: number;
-      slot: number; // current logical slot
-      sorted: boolean;
+      mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial;
+      value: number; slot: number; sorted: boolean;
     }
-
     const baseColor = (v: number) => {
       const c = new THREE.Color();
-      c.setHSL(0.62 - v * 0.13, 0.75, 0.42 + v * 0.18); // deep blue → cyan
+      c.setHSL(0.62 - v * 0.13, 0.75, 0.42 + v * 0.18);
       return c;
     };
     const C_COMPARE = new THREE.Color("#ffd34d");
-    const C_SWAP = new THREE.Color("#ff6b5e");
-    const C_SORTED = new THREE.Color("#3ddc97");
-    const C_HOVER = new THREE.Color("#ffffff");
+    const C_SWAP    = new THREE.Color("#ff6b5e");
+    const C_SORTED  = new THREE.Color("#3ddc97");
+    const C_HOVER   = new THREE.Color("#ffffff");
+    const C_RANGE   = new THREE.Color("#5a7cff");
+    const C_PROBE   = new THREE.Color("#ffd34d");
+    const C_FOUND   = new THREE.Color("#3ddc97");
+    const C_DIM     = new THREE.Color("#2a3550");
 
     const bars: Bar[] = [];
     const slotToBar: Bar[] = [];
@@ -201,101 +164,105 @@ function ThreeScene() {
 
     for (let i = 0; i < BAR_COUNT; i++) {
       const mat = new THREE.MeshStandardMaterial({
-        color: baseColor(values[i]),
-        emissive: baseColor(values[i]),
-        emissiveIntensity: 0.18,
-        roughness: 0.35,
-        metalness: 0.25,
+        color: baseColor(initialValues[i]),
+        emissive: baseColor(initialValues[i]),
+        emissiveIntensity: 0.18, roughness: 0.35, metalness: 0.25,
       });
       const mesh = new THREE.Mesh(barGeo, mat);
-      const h = hOf(values[i]);
+      const h = hOf(initialValues[i]);
       mesh.scale.y = h;
       mesh.position.set(xAt(i), h / 2 - 1.6, 0);
       world.add(mesh);
-      const bar: Bar = { mesh, mat, value: values[i], slot: i, sorted: false };
+      const bar: Bar = { mesh, mat, value: initialValues[i], slot: i, sorted: false };
       bars.push(bar);
       slotToBar[i] = bar;
     }
 
-    // ── Sorting playback state ─────────────────────────────────────────
-    let steps = genSortSteps(algo, values);
+    // ── Playback state ──
+    let sortSteps: SortStep[] = [];
+    let searchSteps: SearchStep[] = [];
     let stepIdx = 0;
     let frame = 0;
-    let framesPerStep = 18; // slower base cadence
-    let cooldown = 0; // pause frames between runs
+    let framesPerStep = 18; // SLOWER default
+    let cooldown = 0;
     let comparing: [Bar, Bar] | null = null;
+    // search state
+    let searchLo = 0, searchHi = BAR_COUNT - 1;
+    let searchProbe = -1;
+    let searchFound = -1;
+    let searchTargetValue = 0;
 
-    interface SwapTween {
-      a: Bar;
-      b: Bar;
-      t: number; // 0..1
-      fromA: number;
-      fromB: number;
-    }
+    interface SwapTween { a: Bar; b: Bar; t: number; fromA: number; fromB: number; }
     const tweens: SwapTween[] = [];
 
-    function reshuffle() {
-      // shuffle the *bars'* values in place, reset visuals & steps
+    function rebuild() {
       const vals = bars.map((b) => b.value);
-      for (let i = vals.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [vals[i], vals[j]] = [vals[j], vals[i]];
+      if (mode === "Quick Sort") {
+        for (let i = vals.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [vals[i], vals[j]] = [vals[j], vals[i]];
+        }
+      } else {
+        vals.sort((a, b) => a - b);
       }
       bars.forEach((b, i) => {
-        b.value = vals[i];
-        b.sorted = false;
-        b.slot = i;
-        slotToBar[i] = b;
+        b.value = vals[i]; b.sorted = false; b.slot = i; slotToBar[i] = b;
         const h = hOf(b.value);
         b.mesh.scale.y = h;
         b.mesh.position.set(xAt(i), h / 2 - 1.6, 0);
       });
-      steps = genSortSteps(algo, vals);
-      stepIdx = 0;
-      comparing = null;
       tweens.length = 0;
-      cooldown = 60;
+      comparing = null;
+      stepIdx = 0;
+      cooldown = 40;
+      if (mode === "Quick Sort") {
+        sortSteps = genQuickSteps(vals);
+        searchSteps = [];
+      } else {
+        // pick a random element to find
+        const idx = Math.floor(Math.random() * vals.length);
+        searchTargetValue = vals[idx];
+        searchSteps = genBinarySearchSteps(vals, searchTargetValue);
+        sortSteps = [];
+        searchLo = 0; searchHi = BAR_COUNT - 1;
+        searchProbe = -1; searchFound = -1;
+      }
     }
+    rebuild();
 
-    function applyStep(s: SortStep) {
+    function applySortStep(s: SortStep) {
       if (s.type === "compare") {
         comparing = [slotToBar[s.i], slotToBar[s.j]];
       } else if (s.type === "swap") {
-        const A = slotToBar[s.i];
-        const B = slotToBar[s.j];
+        const A = slotToBar[s.i]; const B = slotToBar[s.j];
         tweens.push({ a: A, b: B, t: 0, fromA: xAt(A.slot), fromB: xAt(B.slot) });
-        const tmp = A.slot;
-        A.slot = B.slot;
-        B.slot = tmp;
-        slotToBar[A.slot] = A;
-        slotToBar[B.slot] = B;
+        const tmp = A.slot; A.slot = B.slot; B.slot = tmp;
+        slotToBar[A.slot] = A; slotToBar[B.slot] = B;
         comparing = null;
       } else {
         slotToBar[s.i].sorted = true;
         comparing = null;
       }
     }
+    function applySearchStep(s: SearchStep) {
+      if (s.type === "range") { searchLo = s.lo; searchHi = s.hi; searchProbe = -1; }
+      else if (s.type === "probe") { searchProbe = s.mid; }
+      else if (s.type === "found") { searchFound = s.mid; searchProbe = s.mid; }
+      else { searchProbe = -1; }
+    }
 
-    // ── Interaction: drag-orbit, hover, click-to-shuffle ───────────────
+    // ── Interaction ──
     const raycaster = new THREE.Raycaster();
     const pointerNDC = new THREE.Vector2(-10, -10);
     let hovered: Bar | null = null;
 
-    let dragging = false;
-    let moved = 0;
-    let lastX = 0;
-    let lastY = 0;
-    let targetYaw = 0;
-    let targetPitch = 0.06;
-
+    let dragging = false, moved = 0, lastX = 0, lastY = 0;
+    let targetYaw = 0, targetPitch = 0.06;
     const dom = renderer.domElement;
     dom.style.touchAction = "none";
 
     const onPointerDown = (e: PointerEvent) => {
-      dragging = true;
-      moved = 0;
-      lastX = e.clientX;
-      lastY = e.clientY;
+      dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
       dom.setPointerCapture(e.pointerId);
     };
     const onPointerMove = (e: PointerEvent) => {
@@ -303,110 +270,104 @@ function ThreeScene() {
       pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       if (dragging) {
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
+        const dx = e.clientX - lastX, dy = e.clientY - lastY;
         moved += Math.abs(dx) + Math.abs(dy);
         targetYaw += dx * 0.006;
         targetPitch = THREE.MathUtils.clamp(targetPitch + dy * 0.004, -0.15, 0.5);
-        lastX = e.clientX;
-        lastY = e.clientY;
+        lastX = e.clientX; lastY = e.clientY;
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (dragging && moved < 6) reshuffle(); // a click (not a drag) reshuffles
+      if (dragging && moved < 6) rebuild();
       dragging = false;
       try { dom.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     };
-    const onPointerLeave = () => {
-      pointerNDC.set(-10, -10);
-    };
+    const onPointerLeave = () => { pointerNDC.set(-10, -10); };
     dom.addEventListener("pointerdown", onPointerDown);
     dom.addEventListener("pointermove", onPointerMove);
     dom.addEventListener("pointerup", onPointerUp);
     dom.addEventListener("pointerleave", onPointerLeave);
 
-    // ── Animation loop ─────────────────────────────────────────────────
     let animId: number;
-
     function animate() {
       animId = requestAnimationFrame(animate);
       frame++;
 
-      // Playback: advance algorithm steps (slower, more readable)
       if (cooldown > 0) {
         cooldown--;
       } else if (frame % framesPerStep === 0) {
-        if (stepIdx < steps.length) {
-          // gently adapt — never go faster than ~10 fps step rate
-          framesPerStep = steps.length - stepIdx > 120 ? 10 : steps.length - stepIdx > 40 ? 14 : 20;
-          applyStep(steps[stepIdx++]);
-        } else if (steps.length > 0) {
-          // run finished — admire the sorted state, then loop
-          comparing = null;
-          cooldown = 220;
-          steps = [];
-          stepIdx = 0;
+        if (mode === "Quick Sort") {
+          if (stepIdx < sortSteps.length) {
+            framesPerStep = sortSteps.length - stepIdx > 40 ? 14 : 22;
+            applySortStep(sortSteps[stepIdx++]);
+          } else if (sortSteps.length > 0) {
+            comparing = null; cooldown = 180; sortSteps = []; stepIdx = 0;
+          } else {
+            rebuild();
+          }
         } else {
-          reshuffle();
+          if (stepIdx < searchSteps.length) {
+            framesPerStep = 26; // slow & cinematic
+            applySearchStep(searchSteps[stepIdx++]);
+          } else if (searchSteps.length > 0) {
+            cooldown = 180; searchSteps = []; stepIdx = 0;
+          } else {
+            rebuild();
+          }
         }
       }
 
-      // Swap tweens — bars arc over each other while trading places
+      // tweens
       for (let k = tweens.length - 1; k >= 0; k--) {
         const tw = tweens[k];
-        tw.t = Math.min(1, tw.t + 0.035); // slower swap arc
-        const e = 0.5 - 0.5 * Math.cos(Math.PI * tw.t); // ease in-out
+        tw.t = Math.min(1, tw.t + 0.045); // slower
+        const e = 0.5 - 0.5 * Math.cos(Math.PI * tw.t);
         const lift = Math.sin(Math.PI * tw.t) * 0.55;
         tw.a.mesh.position.x = THREE.MathUtils.lerp(tw.fromA, xAt(tw.a.slot), e);
         tw.b.mesh.position.x = THREE.MathUtils.lerp(tw.fromB, xAt(tw.b.slot), e);
-        tw.a.mesh.position.z = lift;
-        tw.b.mesh.position.z = -lift;
-        if (tw.t >= 1) {
-          tw.a.mesh.position.z = 0;
-          tw.b.mesh.position.z = 0;
-          tweens.splice(k, 1);
-        }
+        tw.a.mesh.position.z = lift; tw.b.mesh.position.z = -lift;
+        if (tw.t >= 1) { tw.a.mesh.position.z = 0; tw.b.mesh.position.z = 0; tweens.splice(k, 1); }
       }
 
-      // Hover raycast
       raycaster.setFromCamera(pointerNDC, camera);
       const hits = raycaster.intersectObjects(bars.map((b) => b.mesh), false);
       hovered = hits.length ? bars.find((b) => b.mesh === hits[0].object) ?? null : null;
 
-      // Bar colors / glow
       for (const b of bars) {
-        const inTween = tweens.some((tw) => tw.a === b || tw.b === b);
-        const isCmp = comparing !== null && (comparing[0] === b || comparing[1] === b);
-        let target: THREE.Color;
-        let glow = 0.18;
-        if (b === hovered) {
-          target = C_HOVER; glow = 0.5;
-        } else if (inTween) {
-          target = C_SWAP; glow = 0.9;
-        } else if (isCmp) {
-          target = C_COMPARE; glow = 0.8;
-        } else if (b.sorted) {
-          target = C_SORTED; glow = 0.35;
+        let target: THREE.Color; let glow = 0.18;
+        if (mode === "Quick Sort") {
+          const inTween = tweens.some((tw) => tw.a === b || tw.b === b);
+          const isCmp = comparing !== null && (comparing[0] === b || comparing[1] === b);
+          if (b === hovered) { target = C_HOVER; glow = 0.5; }
+          else if (inTween) { target = C_SWAP; glow = 0.9; }
+          else if (isCmp) { target = C_COMPARE; glow = 0.8; }
+          else if (b.sorted) { target = C_SORTED; glow = 0.35; }
+          else { target = baseColor(b.value); }
         } else {
-          target = baseColor(b.value);
+          // Binary Search highlighting based on slot index
+          const slot = b.slot;
+          const inRange = slot >= searchLo && slot <= searchHi;
+          const isProbe = slot === searchProbe;
+          const isFound = slot === searchFound;
+          if (isFound) { target = C_FOUND; glow = 1.1; }
+          else if (isProbe) { target = C_PROBE; glow = 1.0; }
+          else if (b === hovered) { target = C_HOVER; glow = 0.6; }
+          else if (inRange) { target = C_RANGE; glow = 0.45; }
+          else { target = C_DIM; glow = 0.05; }
         }
-        b.mat.color.lerp(target, 0.25);
-        b.mat.emissive.lerp(target, 0.25);
-        b.mat.emissiveIntensity += (glow - b.mat.emissiveIntensity) * 0.2;
-        // subtle hover pop
-        const hs = hOf(b.value) * (b === hovered ? 1.04 : 1);
-        b.mesh.scale.y += (hs - b.mesh.scale.y) * 0.25;
+        b.mat.color.lerp(target, 0.22);
+        b.mat.emissive.lerp(target, 0.22);
+        b.mat.emissiveIntensity += (glow - b.mat.emissiveIntensity) * 0.18;
+        const hs = hOf(b.value) * (b === hovered ? 1.04 : 1) * ((mode === "Binary Search" && b.slot === searchProbe) ? 1.12 : 1);
+        b.mesh.scale.y += (hs - b.mesh.scale.y) * 0.22;
         b.mesh.position.y = b.mesh.scale.y / 2 - 1.6;
       }
 
-      // Particles drift
       particles.rotation.y = frame * 0.0006;
 
-      // World rotation: drag target + gentle idle drift + pointer parallax
       const idle = dragging ? 0 : Math.sin(frame * 0.0035) * 0.07;
       world.rotation.y += (targetYaw + idle - world.rotation.y) * 0.07;
       world.rotation.x += (targetPitch - world.rotation.x) * 0.07;
-
       camera.position.x += (pointerNDC.x === -10 ? 0 : pointerNDC.x * 0.35 - camera.position.x) * 0.03;
       camera.lookAt(0, -0.1, 0);
 
@@ -414,12 +375,9 @@ function ThreeScene() {
     }
     animate();
 
-    // ── Resize / cleanup ───────────────────────────────────────────────
     const onResize = () => {
-      const w = el.clientWidth || 1;
-      const h = el.clientHeight || 1;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      const w = el.clientWidth || 1; const h = el.clientHeight || 1;
+      camera.aspect = w / h; camera.updateProjectionMatrix();
       renderer.setSize(w, h);
     };
     window.addEventListener("resize", onResize);
@@ -431,97 +389,465 @@ function ThreeScene() {
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("pointerleave", onPointerLeave);
-      barGeo.dispose();
-      pGeo.dispose();
-      pMat.dispose();
+      barGeo.dispose(); pGeo.dispose(); pMat.dispose();
       bars.forEach((b) => b.mat.dispose());
       renderer.dispose();
       if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
     };
-  }, [algo, shuffleKey]);
-
-  const heroCategories = [
-    { label: "Quick Sort",  to: "/sorting",     color: "oklch(0.72 0.19 255)" },
-    { label: "Searching",   to: "/searching",   color: "oklch(0.75 0.18 162)" },
-    { label: "Pathfinding", to: "/pathfinding", color: "oklch(0.68 0.22 22)"  },
-    { label: "Graphs",      to: "/graph",       color: "oklch(0.75 0.18 310)" },
-  ];
+  }, [mode, shuffleKey]);
 
   return (
     <div className="relative w-full h-full">
-      <div
-        ref={mountRef}
-        className="absolute inset-0"
-        style={{ cursor: "grab" }}
-      />
-      {/* Top label */}
-      <div className="absolute top-3 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
-        <span className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "oklch(0.55 0.04 255)" }}>
-          Live · Quick Sort · 3D
-        </span>
+      <div ref={mountRef} className="absolute inset-0" style={{ cursor: "grab" }} />
+      {/* Mode picker */}
+      <div className="absolute top-3 left-0 right-0 flex flex-wrap justify-center gap-1.5 z-10 px-3">
+        {(["Quick Sort", "Binary Search"] as HeroMode[]).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className="px-3 py-1 rounded-full text-[11px] font-mono transition-all hover:scale-105"
+            style={{
+              background: m === mode ? "oklch(0.72 0.19 255 / 22%)" : "oklch(1 0 0 / 5%)",
+              color: m === mode ? "oklch(0.85 0.15 255)" : "oklch(0.55 0.04 255)",
+              border: `1px solid ${m === mode ? "oklch(0.72 0.19 255 / 50%)" : "oklch(1 0 0 / 10%)"}`,
+            }}
+          >
+            {m}
+          </button>
+        ))}
         <button
           onClick={() => setShuffleKey((k) => k + 1)}
-          className="pointer-events-auto px-2.5 py-1 rounded-full text-[10px] font-mono transition-all hover:scale-105"
+          className="px-3 py-1 rounded-full text-[11px] font-mono transition-all hover:scale-105"
           style={{
             background: "oklch(0.75 0.18 162 / 14%)",
             color: "oklch(0.75 0.18 162)",
             border: "1px solid oklch(0.75 0.18 162 / 35%)",
           }}
-          title="Shuffle the bars"
         >
-          ⤨ Shuffle
+          ⤨ Restart
         </button>
       </div>
-
-      {/* Bottom category launcher */}
-      <div className="absolute bottom-10 left-0 right-0 flex flex-wrap justify-center gap-1.5 z-10 px-3">
-        {heroCategories.map((c) => (
-          <Link
-            key={c.to}
-            to={c.to}
-            className="px-3 py-1 rounded-full text-[11px] font-mono transition-all hover:scale-105"
-            style={{
-              background: `${c.color}1f`,
-              color: c.color,
-              border: `1px solid ${c.color}55`,
-            }}
-          >
-            {c.label} →
-          </Link>
-        ))}
-      </div>
-
-      {/* Hint */}
-      <div
-        className="absolute top-10 left-0 right-0 text-center text-[10px] font-mono pointer-events-none z-10"
-        style={{ color: "oklch(0.45 0.04 255)" }}
-      >
-        drag to rotate · click bars to shuffle
+      <div className="absolute top-12 left-0 right-0 text-center text-[10px] font-mono pointer-events-none z-10"
+        style={{ color: "oklch(0.45 0.04 255)" }}>
+        drag to rotate · click to restart
       </div>
     </div>
   );
 }
-// Suppress unused-var warnings when only Quick is exposed
-void HERO_ALGOS;
 
+// ─── Big-O Playground (zoom by wheel, hover tooltips) ────────────────────────
+type Complexity = { name: string; color: string; fn: (n: number) => number };
+const COMPLEXITIES: Complexity[] = [
+  { name: "O(1)",      color: "oklch(0.75 0.18 162)", fn: () => 1 },
+  { name: "O(log n)",  color: "oklch(0.72 0.19 255)", fn: (n) => Math.log2(Math.max(1, n)) },
+  { name: "O(n)",      color: "oklch(0.82 0.18 85)",  fn: (n) => n },
+  { name: "O(n log n)",color: "oklch(0.75 0.18 310)", fn: (n) => n * Math.log2(Math.max(1, n)) },
+  { name: "O(n²)",     color: "oklch(0.68 0.22 22)",  fn: (n) => n * n },
+];
 
+function BigOPlayground() {
+  const [nMax, setNMax] = useState(60);           // controls X range
+  const [hover, setHover] = useState<{ x: number; y: number; n: number } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const W = 720, H = 280, PAD = 36;
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+  // wheel zoom — change nMax between 8..400
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setNMax((cur) => {
+      const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+      return Math.round(Math.min(400, Math.max(8, cur * factor)));
+    });
+  };
+
+  // sample points
+  const series = useMemo(() => {
+    const N = 64;
+    const xs = Array.from({ length: N }, (_, i) => (i / (N - 1)) * nMax);
+    return COMPLEXITIES.map((c) => {
+      const ys = xs.map(c.fn);
+      const maxY = Math.max(...ys, 1);
+      return { ...c, xs, ys, maxY };
+    });
+  }, [nMax]);
+
+  // shared Y normalizer (log compressed so curves are comparable)
+  const globalMax = Math.max(...series.flatMap((s) => s.maxY));
+  const norm = (y: number) => Math.log1p(y) / Math.log1p(globalMax);
+
+  const pxX = (n: number) => PAD + (n / nMax) * (W - 2 * PAD);
+  const pxY = (y: number) => H - PAD - norm(y) * (H - 2 * PAD);
+
+  const onMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+    const xPx = e.clientX - rect.left;
+    const n = Math.max(0, Math.min(nMax, ((xPx - PAD) / (W - 2 * PAD)) * nMax));
+    setHover({ x: xPx, y: e.clientY - rect.top, n });
+  };
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-4"
+    >
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Big-O Playground</h2>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Scroll on the chart to zoom · hover for exact values.</p>
+        </div>
+        <div className="text-xs font-mono px-3 py-1.5 rounded-full" style={{ background: "oklch(1 0 0 / 5%)", border: "1px solid oklch(1 0 0 / 10%)", color: "oklch(0.7 0.04 255)" }}>
+          n max = <span className="font-bold" style={{ color: "oklch(0.85 0.15 255)" }}>{nMax}</span>
+        </div>
+      </header>
+      <div
+        ref={wrapRef}
+        onWheel={onWheel}
+        className="relative rounded-2xl p-3 overflow-hidden"
+        style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
+      >
+        <svg
+          width="100%" viewBox={`0 0 ${W} ${H}`}
+          onMouseMove={onMouseMove}
+          onMouseLeave={() => setHover(null)}
+          className="select-none cursor-crosshair"
+        >
+          {/* grid */}
+          {Array.from({ length: 5 }, (_, i) => {
+            const y = PAD + ((H - 2 * PAD) * i) / 4;
+            return <line key={`gy${i}`} x1={PAD} x2={W - PAD} y1={y} y2={y} stroke="oklch(1 0 0 / 6%)" strokeDasharray="3 3" />;
+          })}
+          {Array.from({ length: 6 }, (_, i) => {
+            const x = PAD + ((W - 2 * PAD) * i) / 5;
+            return <line key={`gx${i}`} x1={x} x2={x} y1={PAD} y2={H - PAD} stroke="oklch(1 0 0 / 6%)" strokeDasharray="3 3" />;
+          })}
+          {/* axes labels */}
+          <text x={PAD} y={H - 10} fill="oklch(0.5 0.04 255)" fontSize="10" fontFamily="JetBrains Mono">0</text>
+          <text x={W - PAD - 22} y={H - 10} fill="oklch(0.5 0.04 255)" fontSize="10" fontFamily="JetBrains Mono">{nMax}</text>
+          <text x={6} y={PAD + 4} fill="oklch(0.5 0.04 255)" fontSize="10" fontFamily="JetBrains Mono">ops</text>
+          <text x={W - 14} y={H - 22} fill="oklch(0.5 0.04 255)" fontSize="10" fontFamily="JetBrains Mono">n</text>
+          {/* curves */}
+          {series.map((s) => {
+            const d = s.xs.map((x, i) => `${i === 0 ? "M" : "L"}${pxX(x).toFixed(1)},${pxY(s.ys[i]).toFixed(1)}`).join(" ");
+            return (
+              <path key={s.name} d={d} fill="none" stroke={s.color} strokeWidth="2.2"
+                style={{ filter: `drop-shadow(0 0 6px ${s.color})` }} />
+            );
+          })}
+          {/* hover crosshair */}
+          {hover && (
+            <>
+              <line x1={hover.x} x2={hover.x} y1={PAD} y2={H - PAD} stroke="oklch(1 0 0 / 25%)" strokeDasharray="2 2" />
+              {series.map((s) => {
+                const y = s.fn(hover.n);
+                return <circle key={s.name} cx={hover.x} cy={pxY(y)} r="3.5" fill={s.color} stroke="white" strokeWidth="0.8" />;
+              })}
+            </>
+          )}
+        </svg>
+        {/* tooltip */}
+        <AnimatePresence>
+          {hover && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="absolute pointer-events-none rounded-xl p-2.5 text-[11px] font-mono"
+              style={{
+                left: Math.min(hover.x + 12, (wrapRef.current?.clientWidth ?? W) - 180),
+                top: Math.max(8, hover.y - 8),
+                background: "oklch(0.06 0.02 265 / 95%)",
+                border: "1px solid oklch(1 0 0 / 12%)",
+                minWidth: 150,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+              }}
+            >
+              <div className="mb-1.5" style={{ color: "oklch(0.7 0.04 255)" }}>
+                n ≈ <span className="font-bold" style={{ color: "oklch(0.85 0.15 255)" }}>{hover.n.toFixed(1)}</span>
+              </div>
+              {series.map((s) => (
+                <div key={s.name} className="flex items-center justify-between gap-3">
+                  <span style={{ color: s.color }}>{s.name}</span>
+                  <span style={{ color: "oklch(0.85 0.01 255)" }}>
+                    {(() => {
+                      const v = s.fn(hover.n);
+                      return v >= 10000 ? v.toExponential(1) : v.toFixed(2);
+                    })()}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* legend */}
+        <div className="mt-2 flex flex-wrap justify-center gap-3">
+          {COMPLEXITIES.map((c) => (
+            <span key={c.name} className="flex items-center gap-1.5 text-[11px] font-mono" style={{ color: "oklch(0.7 0.04 255)" }}>
+              <span className="w-2.5 h-[2px] rounded-full" style={{ background: c.color }} />
+              {c.name}
+            </span>
+          ))}
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+// ─── 5 new animated sections: Race, Spotlight, Complexity Table, Pseudocode Stepper, Timeline ─
+
+// 1) Live Sort Race
+function SortRace() {
+  const algos = ["Bubble", "Insertion", "Selection", "Quick"] as const;
+  const [tick, setTick] = useState(0);
+  const data = useMemo(() => {
+    const N = 22;
+    const seed = Array.from({ length: N }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+    const runs: Record<string, number[]> = {};
+    const counts: Record<string, number> = {};
+    runs.Bubble = (() => { const a = [...seed]; let c = 0; for (let i = 0; i < a.length; i++) for (let j = 0; j < a.length - 1 - i; j++) { c++; if (a[j] > a[j + 1]) [a[j], a[j + 1]] = [a[j + 1], a[j]]; } counts.Bubble = c; return a; })();
+    runs.Insertion = (() => { const a = [...seed]; let c = 0; for (let i = 1; i < a.length; i++) { let j = i; while (j > 0) { c++; if (a[j - 1] > a[j]) { [a[j], a[j - 1]] = [a[j - 1], a[j]]; j--; } else break; } } counts.Insertion = c; return a; })();
+    runs.Selection = (() => { const a = [...seed]; let c = 0; for (let i = 0; i < a.length; i++) { let m = i; for (let j = i + 1; j < a.length; j++) { c++; if (a[j] < a[m]) m = j; } [a[i], a[m]] = [a[m], a[i]]; } counts.Selection = c; return a; })();
+    runs.Quick = (() => { const a = [...seed]; let c = 0; const qs = (lo: number, hi: number) => { if (lo >= hi) return; const p = a[hi]; let i = lo - 1; for (let j = lo; j < hi; j++) { c++; if (a[j] <= p) { i++; [a[i], a[j]] = [a[j], a[i]]; } } [a[i + 1], a[hi]] = [a[hi], a[i + 1]]; qs(lo, i); qs(i + 2, hi); }; qs(0, a.length - 1); counts.Quick = c; return a; })();
+    return { counts };
+  }, [tick]);
+  const maxC = Math.max(...Object.values(data.counts));
+  return (
+    <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="space-y-4">
+      <header className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Live Sort Race</h2>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Comparisons performed on the same random array.</p>
+        </div>
+        <button onClick={() => setTick((t) => t + 1)}
+          className="px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+          style={{ background: "oklch(0.75 0.18 162 / 18%)", color: "oklch(0.75 0.18 162)", border: "1px solid oklch(0.75 0.18 162 / 35%)" }}>
+          ⟳ New race
+        </button>
+      </header>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {algos.map((a) => (
+          <div key={a} className="rounded-2xl p-4" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+            <div className="flex items-center justify-between mb-2 text-xs">
+              <span className="font-mono font-semibold">{a}</span>
+              <span className="font-mono" style={{ color: "oklch(0.55 0.04 255)" }}>{data.counts[a]} ops</span>
+            </div>
+            <div className="h-3 rounded-full overflow-hidden" style={{ background: "oklch(1 0 0 / 8%)" }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(data.counts[a] / maxC) * 100}%` }}
+                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                className="h-full rounded-full"
+                style={{ background: a === "Quick" ? "oklch(0.75 0.18 162)" : "oklch(0.72 0.19 255)" }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.section>
+  );
+}
+
+// 2) Algorithm Spotlight (auto-rotating)
+const spotlight = [
+  { name: "Dijkstra", color: "oklch(0.75 0.18 310)", use: "Shortest path on positively-weighted graphs · GPS, routers" },
+  { name: "A* Search", color: "oklch(0.82 0.18 85)", use: "Heuristic shortest path · pathfinding in games" },
+  { name: "Quick Sort", color: "oklch(0.72 0.19 255)", use: "Divide-and-conquer · in-place general-purpose sort" },
+  { name: "Binary Search", color: "oklch(0.75 0.18 162)", use: "O(log n) lookup in sorted arrays" },
+  { name: "Bellman-Ford", color: "oklch(0.68 0.22 22)", use: "Shortest path · handles negative edges, detects cycles" },
+  { name: "Floyd-Warshall", color: "oklch(0.72 0.22 180)", use: "All-pairs shortest paths via DP · O(n³)" },
+  { name: "Kruskal MST", color: "oklch(0.82 0.22 60)", use: "Minimum spanning tree using union-find" },
+];
+function Spotlight() {
+  const [i, setI] = useState(0);
+  useEffect(() => { const id = setInterval(() => setI((x) => (x + 1) % spotlight.length), 3200); return () => clearInterval(id); }, []);
+  const item = spotlight[i];
+  return (
+    <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="space-y-4">
+      <header>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Algorithm Spotlight</h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Auto-rotating — one classic algorithm at a time.</p>
+      </header>
+      <div className="rounded-2xl p-6 relative overflow-hidden h-44 flex items-center"
+        style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 24, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-20 -right-20 w-72 h-72 rounded-full blur-3xl opacity-25"
+          style={{ background: item.color }} />
+        <AnimatePresence mode="wait">
+          <motion.div key={item.name}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.4 }} className="relative">
+            <div className="font-mono text-xs mb-1" style={{ color: item.color }}>SPOTLIGHT · {String(i + 1).padStart(2, "0")}/{spotlight.length}</div>
+            <h3 className="text-2xl font-bold tracking-tight">{item.name}</h3>
+            <p className="text-sm mt-1" style={{ color: "oklch(0.7 0.04 255)" }}>{item.use}</p>
+          </motion.div>
+        </AnimatePresence>
+        <div className="absolute bottom-4 right-4 flex gap-1.5">
+          {spotlight.map((_, k) => (
+            <span key={k} className="w-1.5 h-1.5 rounded-full transition-all"
+              style={{ background: k === i ? item.color : "oklch(1 0 0 / 15%)", width: k === i ? 16 : 6 }} />
+          ))}
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+// 3) Complexity comparison table (animated rows)
+const COMPLEXITY_TABLE = [
+  { name: "Bubble Sort",    best: "O(n)",       avg: "O(n²)",       worst: "O(n²)",       space: "O(1)" },
+  { name: "Quick Sort",     best: "O(n log n)", avg: "O(n log n)",  worst: "O(n²)",       space: "O(log n)" },
+  { name: "Merge Sort",     best: "O(n log n)", avg: "O(n log n)",  worst: "O(n log n)",  space: "O(n)" },
+  { name: "Heap Sort",      best: "O(n log n)", avg: "O(n log n)",  worst: "O(n log n)",  space: "O(1)" },
+  { name: "Binary Search",  best: "O(1)",       avg: "O(log n)",    worst: "O(log n)",    space: "O(1)" },
+  { name: "BFS / DFS",      best: "O(V+E)",     avg: "O(V+E)",      worst: "O(V+E)",      space: "O(V)" },
+  { name: "Dijkstra",       best: "O(E log V)", avg: "O(E log V)",  worst: "O(E log V)",  space: "O(V)" },
+  { name: "Bellman-Ford",   best: "O(VE)",      avg: "O(VE)",       worst: "O(VE)",       space: "O(V)" },
+  { name: "Floyd-Warshall", best: "O(V³)",      avg: "O(V³)",       worst: "O(V³)",       space: "O(V²)" },
+];
+function ComplexityTable() {
+  return (
+    <motion.section initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.1 }} className="space-y-4"
+      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}>
+      <motion.header variants={fadeUp}>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Complexity at a glance</h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>How the algorithms stack up.</p>
+      </motion.header>
+      <div className="overflow-x-auto rounded-2xl" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+        <table className="w-full text-xs sm:text-sm">
+          <thead style={{ background: "oklch(1 0 0 / 4%)" }}>
+            <tr className="text-left" style={{ color: "oklch(0.65 0.04 255)" }}>
+              <th className="p-3 font-semibold">Algorithm</th>
+              <th className="p-3 font-mono">Best</th>
+              <th className="p-3 font-mono">Average</th>
+              <th className="p-3 font-mono">Worst</th>
+              <th className="p-3 font-mono">Space</th>
+            </tr>
+          </thead>
+          <tbody>
+            {COMPLEXITY_TABLE.map((row) => (
+              <motion.tr key={row.name} variants={fadeUp}
+                whileHover={{ background: "oklch(0.72 0.19 255 / 8%)" }}
+                className="border-t" style={{ borderColor: "oklch(1 0 0 / 6%)" }}>
+                <td className="p-3 font-semibold">{row.name}</td>
+                <td className="p-3 font-mono" style={{ color: "oklch(0.75 0.18 162)" }}>{row.best}</td>
+                <td className="p-3 font-mono" style={{ color: "oklch(0.82 0.18 85)" }}>{row.avg}</td>
+                <td className="p-3 font-mono" style={{ color: "oklch(0.68 0.22 22)" }}>{row.worst}</td>
+                <td className="p-3 font-mono" style={{ color: "oklch(0.7 0.04 255)" }}>{row.space}</td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </motion.section>
+  );
+}
+
+// 4) Animated pseudocode stepper
+const PSEUDO_STEPS = [
+  { line: "function quickSort(a, lo, hi):",        note: "Entry point" },
+  { line: "  if lo >= hi: return",                  note: "Base case" },
+  { line: "  pivot = a[hi]",                        note: "Choose last as pivot" },
+  { line: "  i = lo - 1",                            note: "Boundary index" },
+  { line: "  for j = lo to hi - 1:",                 note: "Scan range" },
+  { line: "    if a[j] <= pivot: swap(a[++i], a[j])", note: "Partition" },
+  { line: "  swap(a[i+1], a[hi])",                   note: "Place pivot" },
+  { line: "  quickSort(a, lo, i);  quickSort(a, i+2, hi)", note: "Recurse" },
+];
+function PseudoStepper() {
+  const [i, setI] = useState(0);
+  useEffect(() => { const id = setInterval(() => setI((x) => (x + 1) % PSEUDO_STEPS.length), 1800); return () => clearInterval(id); }, []);
+  return (
+    <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="space-y-4">
+      <header>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Pseudocode in motion</h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Watch Quick Sort step through its own code.</p>
+      </header>
+      <div className="rounded-2xl p-4 sm:p-6" style={{ background: "oklch(0.07 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+        <pre className="text-xs sm:text-sm font-mono leading-7 whitespace-pre-wrap">
+{PSEUDO_STEPS.map((s, k) => (
+  <motion.div key={k}
+    animate={{
+      color: k === i ? "oklch(0.95 0.01 255)" : "oklch(0.5 0.04 255)",
+      background: k === i ? "oklch(0.72 0.19 255 / 12%)" : "transparent",
+      x: k === i ? 4 : 0,
+    }}
+    transition={{ duration: 0.25 }}
+    className="px-2 rounded-md flex items-center justify-between gap-4"
+  >
+    <span>{s.line}</span>
+    {k === i && (
+      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        className="text-[10px] uppercase tracking-widest" style={{ color: "oklch(0.75 0.18 162)" }}>
+        ◀ {s.note}
+      </motion.span>
+    )}
+  </motion.div>
+))}
+        </pre>
+      </div>
+    </motion.section>
+  );
+}
+
+// 5) Algorithm timeline (history)
+const TIMELINE = [
+  { year: "1945", who: "von Neumann",   what: "Merge Sort" },
+  { year: "1956", who: "Kruskal",       what: "Minimum spanning tree" },
+  { year: "1959", who: "Dijkstra",      what: "Shortest path algorithm" },
+  { year: "1960", who: "Hoare",         what: "Quick Sort" },
+  { year: "1962", who: "Floyd",         what: "Floyd-Warshall" },
+  { year: "1968", who: "Hart/Nilsson/Raphael", what: "A* Search" },
+  { year: "1977", who: "Knuth/Morris/Pratt", what: "KMP string search" },
+];
+function Timeline() {
+  return (
+    <motion.section initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.1 }} className="space-y-4"
+      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}>
+      <motion.header variants={fadeUp}>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>A short history</h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>The minds behind the algorithms you're learning.</p>
+      </motion.header>
+      <div className="relative pl-6">
+        <div className="absolute left-2 top-2 bottom-2 w-px" style={{ background: "linear-gradient(180deg, transparent, oklch(0.72 0.19 255 / 50%), transparent)" }} />
+        <div className="space-y-3">
+          {TIMELINE.map((t) => (
+            <motion.div key={t.year} variants={fadeUp}
+              whileHover={{ x: 4 }}
+              className="relative rounded-xl p-3 pl-4"
+              style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+              <span className="absolute -left-[19px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
+                style={{ background: "oklch(0.72 0.19 255)", boxShadow: "0 0 12px oklch(0.72 0.19 255 / 60%)" }} />
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-sm font-mono font-bold" style={{ color: "oklch(0.85 0.15 255)" }}>{t.year}</span>
+                <span className="text-sm font-semibold">{t.what}</span>
+                <span className="text-xs" style={{ color: "oklch(0.55 0.04 255)" }}>— {t.who}</span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+// ─── Original data ─────────────────────────────────────────────────────────
 const cards = [
   { to: "/sorting",     title: "Sorting",             desc: "Bubble, Selection, Insertion, Merge, Quick, Heap and 7 more",  icon: "⟨⟩", accent: "oklch(0.72 0.19 255)", glow: "oklch(0.72 0.19 255 / 15%)", tag: "13 algorithms" },
   { to: "/searching",   title: "Searching",           desc: "Linear, Binary, Jump, Exponential, Ternary, Interpolation",      icon: "⌕", accent: "oklch(0.75 0.18 162)", glow: "oklch(0.75 0.18 162 / 15%)", tag: "6 algorithms" },
   { to: "/tree",        title: "Tree Traversals",     desc: "BFS, DFS — In / Pre / Post order",                                icon: "⋔", accent: "oklch(0.82 0.18 85)",  glow: "oklch(0.82 0.18 85 / 15%)",  tag: "4 algorithms" },
-  { to: "/pathfinding", title: "Pathfinding",         desc: "BFS, Dijkstra, and A* on editable grids you can draw walls on",  icon: "◈", accent: "oklch(0.68 0.22 22)",  glow: "oklch(0.68 0.22 22 / 15%)",  tag: "3 algorithms" },
-  { to: "/graph",       title: "Graph Algorithms",    desc: "DFS, BFS, Topological Sort, Dijkstra, Bellman-Ford, Floyd-Warshall, Prim & Kruskal MST", icon: "⬡", accent: "oklch(0.75 0.18 310)", glow: "oklch(0.75 0.18 310 / 15%)", tag: "9 algorithms" },
+  { to: "/pathfinding", title: "Pathfinding",         desc: "BFS, Dijkstra, and A* on editable grids",                         icon: "◈", accent: "oklch(0.68 0.22 22)",  glow: "oklch(0.68 0.22 22 / 15%)",  tag: "3 algorithms" },
+  { to: "/graph",       title: "Graph Algorithms",    desc: "DFS, BFS, Dijkstra, Bellman-Ford, Floyd-Warshall, Prim, Kruskal", icon: "⬡", accent: "oklch(0.75 0.18 310)", glow: "oklch(0.75 0.18 310 / 15%)", tag: "9 algorithms" },
   { to: "/dp",          title: "Dynamic Programming", desc: "Fibonacci, LCS, Knapsack, Edit Distance, Coin Change, LIS",       icon: "⊞", accent: "oklch(0.72 0.22 180)", glow: "oklch(0.72 0.22 180 / 15%)", tag: "6 algorithms" },
-  { to: "/strings",     title: "String Algorithms",   desc: "Naive, KMP, Rabin-Karp, Z-Algorithm",                             icon: "Σ", accent: "oklch(0.82 0.22 60)",  glow: "oklch(0.82 0.22 60 / 15%)",  tag: "4 algorithms" },
+  { to: "/strings",     title: "String Algorithms",   desc: "Naive, KMP, Rabin-Karp, Z-Algorithm, Boyer-Moore, Manacher",      icon: "Σ", accent: "oklch(0.82 0.22 60)",  glow: "oklch(0.82 0.22 60 / 15%)",  tag: "6 algorithms" },
   { to: "/nqueens",     title: "N-Queens",            desc: "Classic backtracking solver on an interactive board",             icon: "♛", accent: "oklch(0.82 0.18 85)",  glow: "oklch(0.82 0.18 85 / 15%)",  tag: "Backtracking" },
-  { to: "/knights",     title: "Knight's Tour",       desc: "Warnsdorff's heuristic visits every chessboard square",            icon: "♞", accent: "oklch(0.72 0.22 180)", glow: "oklch(0.72 0.22 180 / 15%)", tag: "Chess" },
+  { to: "/knights",     title: "Knight's Tour",       desc: "Warnsdorff's heuristic visits every chessboard square",           icon: "♞", accent: "oklch(0.72 0.22 180)", glow: "oklch(0.72 0.22 180 / 15%)", tag: "Chess" },
   { to: "/hanoi",       title: "Tower of Hanoi",      desc: "Recursive disk moves with an animated 3-peg solution",            icon: "⌬", accent: "oklch(0.75 0.18 310)", glow: "oklch(0.75 0.18 310 / 15%)", tag: "Recursion" },
 ] as const;
 
 const stats = [
-  { value: "45+",   label: "Algorithms" },
+  { value: "60+",   label: "Algorithms" },
   { value: "10",    label: "Categories" },
   { value: "60fps", label: "Animations" },
   { value: "⌘",    label: "C++ Code" },
@@ -543,31 +869,16 @@ const howSteps = [
   { n: "04", title: "Read the code",     desc: "The C++ panel highlights the line that is currently executing." },
 ];
 
-const faqs = [
-  { q: "Is this free?",                       a: "Yes — completely free and open in your browser. No sign-up required." },
-  { q: "Can I use the C++ code in my own projects?", a: "Absolutely. Use the Copy or Download button on any code panel. The snippets use only the C++ standard template library." },
-  { q: "Why C++ and not JavaScript?",      a: "C++ with STL is concise, fast, and what most CS courses and interviews use, which makes the algorithms easier to follow. The actual visualizer is built in TypeScript." },
-  { q: "Does it work on mobile?",             a: "Yes. The layout stacks vertically on phones and tablets, and the visualization keeps its proportions." },
-];
-
-const testimonials = [
-  { name: "Anika R.",   role: "CS Student",          quote: "The line highlighting finally made Dijkstra click for me. I stopped memorizing and started understanding." },
-  { name: "Marcus T.",  role: "Self-taught dev",     quote: "I keep AlgoViz open in a tab during interview prep. Watching Quick Sort partition is oddly satisfying." },
-  { name: "Priya S.",   role: "Bootcamp instructor", quote: "I use this in lectures. Students see the algorithm AND read the C++ at the same time — game changer." },
-  { name: "David K.",   role: "Software Engineer",   quote: "Best free algorithm visualizer I've found. The DP table animations alone are worth bookmarking." },
-];
-
 const topics = [
-  "Bubble Sort","Quick Sort","Merge Sort","Heap Sort","Radix Sort",
-  "Linear Search","Binary Search","Jump Search","Interpolation Search","Exponential Search","Ternary Search",
-  "BFS","DFS","Dijkstra","A*","Bellman-Ford","Floyd-Warshall","Prim MST","Kruskal MST","Topological Sort","Cycle Detection",
-  "KMP","Rabin-Karp","Z-Algorithm",
-  "Fibonacci DP","Knapsack","LCS","Edit Distance","Coin Change","LIS",
-  "Inorder","Preorder","Postorder","Level-order",
-  "N-Queens","Knight's Tour","Tower of Hanoi",
+  "Quick Sort","Merge Sort","Heap Sort","Radix Sort","Counting Sort",
+  "Binary Search","Jump Search","Interpolation Search",
+  "BFS","DFS","Dijkstra","A*","Bellman-Ford","Floyd-Warshall","Prim MST","Kruskal MST",
+  "KMP","Rabin-Karp","Z-Algorithm","Boyer-Moore","Manacher",
+  "Sieve","GCD","Fast Power","Fenwick Tree","Segment Tree",
+  "Fibonacci DP","Knapsack","LCS","Edit Distance","Coin Change","LIS","Matrix Chain","Rod Cutting",
 ];
 
-// ─── Motion variants ──────────────────────────────────────────────────────────
+// ─── Motion variants ──────────────────────────────────────────────────────
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 28 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const } },
@@ -581,7 +892,7 @@ const popIn: Variants = {
   show:   { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 260, damping: 18 } },
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────
 function Index() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
@@ -590,114 +901,72 @@ function Index() {
 
   return (
     <div className="space-y-16 sm:space-y-24 py-4 sm:py-8 overflow-hidden">
-      {/* ───────── Hero ───────── */}
-      <motion.section
-        ref={heroRef}
-        style={{ y: heroY, opacity: heroOpacity }}
-        className="text-center space-y-5 relative"
-      >
-        {/* Ambient orbs */}
+      {/* Hero */}
+      <motion.section ref={heroRef} style={{ y: heroY, opacity: heroOpacity }} className="text-center space-y-5 relative">
         <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
-          <motion.div
-            animate={{ y: [0, 24, 0], x: [0, 14, 0] }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-0 left-1/4 w-72 h-72 rounded-full blur-3xl opacity-25"
-            style={{ background: "oklch(0.72 0.19 255)" }}
-          />
-          <motion.div
-            animate={{ y: [0, -18, 0], x: [0, -22, 0] }}
-            transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-10 right-1/4 w-56 h-56 rounded-full blur-3xl opacity-20"
-            style={{ background: "oklch(0.75 0.18 162)" }}
-          />
-          <motion.div
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+          <motion.div animate={{ y: [0, 24, 0], x: [0, 14, 0] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-0 left-1/4 w-72 h-72 rounded-full blur-3xl opacity-25" style={{ background: "oklch(0.72 0.19 255)" }} />
+          <motion.div animate={{ y: [0, -18, 0], x: [0, -22, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-10 right-1/4 w-56 h-56 rounded-full blur-3xl opacity-20" style={{ background: "oklch(0.75 0.18 162)" }} />
+          <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
             className="absolute -top-20 left-1/2 -translate-x-1/2 w-[680px] h-[680px] rounded-full blur-3xl opacity-10"
-            style={{ background: "conic-gradient(from 0deg, oklch(0.72 0.19 255), oklch(0.75 0.18 162), oklch(0.82 0.18 85), oklch(0.72 0.19 255))" }}
-          />
+            style={{ background: "conic-gradient(from 0deg, oklch(0.72 0.19 255), oklch(0.75 0.18 162), oklch(0.82 0.18 85), oklch(0.72 0.19 255))" }} />
         </div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-4" style={{ background: "oklch(0.72 0.19 255 / 12%)", color: "oklch(0.72 0.19 255)", border: "1px solid oklch(0.72 0.19 255 / 25%)" }}>
-            <motion.span
-              animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
-              transition={{ duration: 1.6, repeat: Infinity }}
-              className="inline-block h-1.5 w-1.5 rounded-full"
-              style={{ background: "oklch(0.72 0.19 255)" }}
-            />
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-4"
+            style={{ background: "oklch(0.72 0.19 255 / 12%)", color: "oklch(0.72 0.19 255)", border: "1px solid oklch(0.72 0.19 255 / 25%)" }}>
+            <motion.span animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }} transition={{ duration: 1.6, repeat: Infinity }}
+              className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "oklch(0.72 0.19 255)" }} />
             Interactive Algorithm Learning · with live C++
           </span>
         </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.06 }}
-          className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight"
-          style={{ letterSpacing: "-0.03em" }}
-        >
-          See algorithms{" "}
-          <span className="shimmer-text">think</span>.<br />
+        <motion.h1 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.06 }}
+          className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight" style={{ letterSpacing: "-0.03em" }}>
+          See algorithms <span className="shimmer-text">think</span>.<br />
           <span className="text-2xl sm:text-3xl md:text-4xl" style={{ color: "oklch(0.65 0.04 255)" }}>
             Read the C++ <span style={{ color: "oklch(0.72 0.19 255)" }}>line-by-line</span>.
           </span>
         </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}
-          className="mx-auto max-w-xl text-sm sm:text-base"
-          style={{ color: "oklch(0.60 0.04 255)" }}
-        >
-          Step through 40+ classic algorithms in real-time. Every animation is paired with the matching C++ STL implementation —
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}
+          className="mx-auto max-w-xl text-sm sm:text-base" style={{ color: "oklch(0.60 0.04 255)" }}>
+          Step through 60+ classic algorithms in real-time. Every animation is paired with the matching C++ STL implementation —
           and the currently-executing line lights up as you watch.
         </motion.p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}
-          className="flex justify-center gap-2 flex-wrap"
-        >
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}
+          className="flex justify-center gap-2 flex-wrap">
           <Link to="/sorting"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-105"
             style={{ background: "oklch(0.72 0.19 255)", color: "oklch(0.08 0.02 265)", boxShadow: "0 0 24px oklch(0.72 0.19 255 / 30%)" }}>
             Start Visualizing <motion.span animate={{ x: [0, 4, 0] }} transition={{ duration: 1.4, repeat: Infinity }}>→</motion.span>
           </Link>
-          <Link to="/pathfinding"
+          <Link to="/graph"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:scale-105"
             style={{ background: "oklch(1 0 0 / 6%)", color: "oklch(0.85 0.01 255)", border: "1px solid oklch(1 0 0 / 10%)" }}>
-            Try Pathfinding
+            Try Graph Algorithms
           </Link>
         </motion.div>
 
-        {/* ── Three.js hero demo ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.6 }}
+        {/* Three.js hero — toggleable Quick Sort / Binary Search */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.6 }}
           className="mx-auto mt-10 max-w-3xl rounded-2xl overflow-hidden relative"
-          style={{
-            background: "oklch(0.08 0.02 265)",
-            border: "1px solid oklch(1 0 0 / 10%)",
-            height: "340px",
-          }}
-        >
-          {/* Corner glow accents */}
+          style={{ background: "oklch(0.08 0.02 265)", border: "1px solid oklch(1 0 0 / 10%)", height: "360px" }}>
           <div className="absolute top-0 left-0 w-24 h-24 rounded-full blur-2xl opacity-30 pointer-events-none"
             style={{ background: "oklch(0.72 0.19 255)", transform: "translate(-30%, -30%)" }} />
           <div className="absolute bottom-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 pointer-events-none"
             style={{ background: "oklch(0.75 0.18 162)", transform: "translate(30%, 30%)" }} />
-
           <ThreeScene />
-
-          {/* Legend row */}
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-4 pointer-events-none">
             {[
-              { dot: "#ffd34d", label: "Comparing" },
-              { dot: "#ff6b5e", label: "Swapping" },
-              { dot: "#3ddc97", label: "Sorted" },
+              { dot: "#ffd34d", label: "Compare / Probe" },
+              { dot: "#ff6b5e", label: "Swap" },
+              { dot: "#3ddc97", label: "Sorted / Found" },
+              { dot: "#5a7cff", label: "Search Range" },
             ].map(({ dot, label }) => (
-              <span key={label} className="flex items-center gap-1 text-[10px] font-mono"
-                style={{ color: "oklch(0.50 0.04 255)" }}>
+              <span key={label} className="flex items-center gap-1 text-[10px] font-mono" style={{ color: "oklch(0.50 0.04 255)" }}>
                 <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                 {label}
               </span>
@@ -706,50 +975,32 @@ function Index() {
         </motion.div>
       </motion.section>
 
-      {/* ───────── Stats bar ───────── */}
-      <motion.div
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.4 }}
+      {/* Stats */}
+      <motion.div variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.4 }}
         className="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden"
-        style={{ background: "oklch(1 0 0 / 6%)", border: "1px solid oklch(1 0 0 / 8%)" }}
-      >
+        style={{ background: "oklch(1 0 0 / 6%)", border: "1px solid oklch(1 0 0 / 8%)" }}>
         {stats.map((s) => (
-          <motion.div
-            key={s.label}
-            variants={popIn}
-            whileHover={{ scale: 1.04 }}
-            className="flex flex-col items-center py-4 px-3 cursor-default"
-            style={{ background: "oklch(0.10 0.02 265)" }}
-          >
+          <motion.div key={s.label} variants={popIn} whileHover={{ scale: 1.04 }}
+            className="flex flex-col items-center py-4 px-3 cursor-default" style={{ background: "oklch(0.10 0.02 265)" }}>
             <span className="text-2xl font-bold tracking-tight" style={{ color: "oklch(0.72 0.19 255)", letterSpacing: "-0.03em" }}>{s.value}</span>
             <span className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.04 255)" }}>{s.label}</span>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* ───────── Category cards ───────── */}
-      <motion.section
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.15 }}
-        className="space-y-4"
-      >
+      {/* Big-O Playground (new) */}
+      <BigOPlayground />
+
+      {/* Cards */}
+      <motion.section variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.15 }} className="space-y-4">
         <motion.header variants={fadeUp}>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Explore by category</h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Seven sections, dozens of algorithms — every one with a synced C++ panel.</p>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Ten sections, dozens of algorithms — every one with a synced C++ panel.</p>
         </motion.header>
         <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (
-            <motion.div
-              key={c.to}
-              variants={fadeUp}
-              whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}
-            >
-              <Link to={c.to}
-                className="group relative block rounded-2xl overflow-hidden transition-all duration-300"
+            <motion.div key={c.to} variants={fadeUp} whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}>
+              <Link to={c.to} className="group relative block rounded-2xl overflow-hidden transition-all duration-300"
                 style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 32px ${c.glow}, 0 0 0 1px ${c.accent}30`; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
@@ -758,12 +1009,7 @@ function Index() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2.5">
-                        <motion.span
-                          whileHover={{ rotate: 360 }}
-                          transition={{ duration: 0.6 }}
-                          className="text-xl"
-                          style={{ color: c.accent }}
-                        >{c.icon}</motion.span>
+                        <motion.span whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }} className="text-xl" style={{ color: c.accent }}>{c.icon}</motion.span>
                         <h3 className="text-base sm:text-lg font-semibold tracking-tight" style={{ letterSpacing: "-0.02em" }}>{c.title}</h3>
                       </div>
                       <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>{c.desc}</p>
@@ -780,32 +1026,20 @@ function Index() {
         </div>
       </motion.section>
 
-      {/* ───────── Features ───────── */}
-      <motion.section
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.2 }}
-        className="space-y-4"
-      >
+      {/* New animated section #1 */}
+      <SortRace />
+
+      {/* Features */}
+      <motion.section variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} className="space-y-4">
         <motion.header variants={fadeUp}>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>What you get</h2>
           <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Designed to make algorithms click — not just watch them move.</p>
         </motion.header>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <motion.div
-              key={f.title}
-              variants={fadeUp}
-              whileHover={{ scale: 1.03 }}
-              className="rounded-2xl p-5 cursor-default"
-              style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
-            >
-              <motion.div
-                whileHover={{ scale: 1.2, rotate: 8 }}
-                className="text-xl mb-2 inline-block"
-                style={{ color: "oklch(0.72 0.19 255)" }}
-              >{f.icon}</motion.div>
+            <motion.div key={f.title} variants={fadeUp} whileHover={{ scale: 1.03 }}
+              className="rounded-2xl p-5 cursor-default" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+              <motion.div whileHover={{ scale: 1.2, rotate: 8 }} className="text-xl mb-2 inline-block" style={{ color: "oklch(0.72 0.19 255)" }}>{f.icon}</motion.div>
               <h3 className="font-semibold text-sm sm:text-base mb-1">{f.title}</h3>
               <p className="text-xs sm:text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>{f.desc}</p>
             </motion.div>
@@ -813,35 +1047,22 @@ function Index() {
         </div>
       </motion.section>
 
-      {/* ───────── How it works ───────── */}
-      <motion.section
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.2 }}
-        className="space-y-4"
-      >
+      {/* New animated section #2 */}
+      <Spotlight />
+
+      {/* How it works */}
+      <motion.section variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} className="space-y-4">
         <motion.header variants={fadeUp}>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>How it works</h2>
           <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Four steps from curious to confident.</p>
         </motion.header>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 relative">
           {howSteps.map((s, i) => (
-            <motion.div
-              key={s.n}
-              variants={fadeUp}
-              whileHover={{ y: -4 }}
-              className="rounded-2xl p-5 relative overflow-hidden"
-              style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                whileInView={{ opacity: 0.15, scale: 1 }}
-                viewport={{ once: true }}
+            <motion.div key={s.n} variants={fadeUp} whileHover={{ y: -4 }} className="rounded-2xl p-5 relative overflow-hidden"
+              style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
+              <motion.div initial={{ opacity: 0, scale: 0.5 }} whileInView={{ opacity: 0.15, scale: 1 }} viewport={{ once: true }}
                 transition={{ delay: i * 0.08, type: "spring" }}
-                className="absolute top-2 right-3 text-3xl font-bold"
-                style={{ color: "oklch(0.72 0.19 255)" }}
-              >{s.n}</motion.div>
+                className="absolute top-2 right-3 text-3xl font-bold" style={{ color: "oklch(0.72 0.19 255)" }}>{s.n}</motion.div>
               <h3 className="font-semibold text-sm mb-1">{s.title}</h3>
               <p className="text-xs" style={{ color: "oklch(0.55 0.04 255)" }}>{s.desc}</p>
             </motion.div>
@@ -849,42 +1070,26 @@ function Index() {
         </div>
       </motion.section>
 
-      {/* ───────── Topics marquee ───────── */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="space-y-4"
-      >
+      {/* New animated section #3 */}
+      <ComplexityTable />
+
+      {/* Topics marquee */}
+      <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="space-y-4">
         <header>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Everything covered</h2>
           <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>A peek at the algorithms waiting for you.</p>
         </header>
-        <div
-          className="relative overflow-hidden rounded-2xl py-5"
+        <div className="relative overflow-hidden rounded-2xl py-5"
           style={{
-            background: "oklch(0.10 0.02 265)",
-            border: "1px solid oklch(1 0 0 / 8%)",
+            background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)",
             maskImage: "linear-gradient(90deg, transparent, black 12%, black 88%, transparent)",
             WebkitMaskImage: "linear-gradient(90deg, transparent, black 12%, black 88%, transparent)",
-          }}
-        >
-          <motion.div
-            className="flex gap-2 whitespace-nowrap"
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-          >
+          }}>
+          <motion.div className="flex gap-2 whitespace-nowrap"
+            animate={{ x: ["0%", "-50%"] }} transition={{ duration: 50, repeat: Infinity, ease: "linear" }}>
             {[...topics, ...topics].map((t, i) => (
-              <span
-                key={i}
-                className="inline-block px-3 py-1.5 rounded-full text-xs font-mono"
-                style={{
-                  background: "oklch(1 0 0 / 5%)",
-                  color: "oklch(0.70 0.04 255)",
-                  border: "1px solid oklch(1 0 0 / 10%)",
-                }}
-              >
+              <span key={i} className="inline-block px-3 py-1.5 rounded-full text-xs font-mono"
+                style={{ background: "oklch(1 0 0 / 5%)", color: "oklch(0.70 0.04 255)", border: "1px solid oklch(1 0 0 / 10%)" }}>
                 {t}
               </span>
             ))}
@@ -892,67 +1097,11 @@ function Index() {
         </div>
       </motion.section>
 
-      {/* ───────── Testimonials ───────── */}
-      <motion.section
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.15 }}
-        className="space-y-4"
-      >
-        <motion.header variants={fadeUp}>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Loved by learners</h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Real notes from people who used it to study.</p>
-        </motion.header>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {testimonials.map((t) => (
-            <motion.div
-              key={t.name}
-              variants={fadeUp}
-              whileHover={{ y: -3, boxShadow: "0 12px 30px oklch(0.72 0.19 255 / 12%)" }}
-              className="rounded-2xl p-5 relative"
-              style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
-            >
-              <span
-                className="absolute top-3 right-4 text-5xl leading-none opacity-15 font-serif"
-                style={{ color: "oklch(0.72 0.19 255)" }}
-              >"</span>
-              <p className="text-sm leading-relaxed" style={{ color: "oklch(0.78 0.02 255)" }}>{t.quote}</p>
-              <div className="mt-4 flex items-center gap-3">
-                <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{ background: "oklch(0.72 0.19 255 / 18%)", color: "oklch(0.72 0.19 255)" }}
-                >
-                  {t.name.split(" ").map((p) => p[0]).join("")}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold">{t.name}</div>
-                  <div className="text-[10px]" style={{ color: "oklch(0.50 0.04 255)" }}>{t.role}</div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
+      {/* New animated section #4 */}
+      <PseudoStepper />
 
-      {/* ───────── Interactive: Big-O playground ───────── */}
-      <BigOSection />
-
-      {/* ───────── Interactive: Live sort race ───────── */}
-      <SortRaceSection />
-
-      {/* ───────── Interactive: Algorithm spotlight ───────── */}
-      <SpotlightSection />
-
-
-      {/* ───────── Tech stack ───────── */}
-      <motion.section
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.3 }}
-        className="space-y-4"
-      >
+      {/* Tech stack */}
+      <motion.section variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} className="space-y-4">
         <motion.header variants={fadeUp}>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Built with</h2>
           <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Modern tooling for a snappy experience.</p>
@@ -968,68 +1117,26 @@ function Index() {
             { name: "Vite",           c: "oklch(0.72 0.22 20)"  },
             { name: "C++ STL",        c: "oklch(0.72 0.22 180)" },
           ].map((tech) => (
-            <motion.span
-              key={tech.name}
-              variants={popIn}
-              whileHover={{ scale: 1.08, y: -2 }}
+            <motion.span key={tech.name} variants={popIn} whileHover={{ scale: 1.08, y: -2 }}
               className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-default"
-              style={{
-                background: `${tech.c}14`,
-                color: tech.c,
-                border: `1px solid ${tech.c}30`,
-              }}
-            >
+              style={{ background: `${tech.c}14`, color: tech.c, border: `1px solid ${tech.c}30` }}>
               {tech.name}
             </motion.span>
           ))}
         </div>
       </motion.section>
 
-      {/* ───────── FAQ ───────── */}
-      <motion.section
-        variants={staggerParent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.2 }}
-        className="space-y-4"
-      >
-        <motion.header variants={fadeUp}>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Questions</h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>The short version.</p>
-        </motion.header>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {faqs.map((f) => (
-            <motion.details
-              key={f.q}
-              variants={fadeUp}
-              className="rounded-2xl p-4 group"
-              style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
-            >
-              <summary className="cursor-pointer text-sm font-semibold flex items-center justify-between list-none">
-                {f.q}
-                <span className="text-xs transition-transform group-open:rotate-90" style={{ color: "oklch(0.55 0.04 255)" }}>›</span>
-              </summary>
-              <p className="text-xs sm:text-sm mt-2" style={{ color: "oklch(0.60 0.04 255)" }}>{f.a}</p>
-            </motion.details>
-          ))}
-        </div>
-      </motion.section>
+      {/* New animated section #5 */}
+      <Timeline />
 
-      {/* ───────── CTA ───────── */}
-      <motion.section
-        initial={{ opacity: 0, scale: 0.96 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true, amount: 0.4 }}
+      {/* CTA */}
+      <motion.section initial={{ opacity: 0, scale: 0.96 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: 0.4 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="rounded-2xl p-6 sm:p-10 text-center relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, oklch(0.12 0.04 265) 0%, oklch(0.10 0.02 265) 100%)", border: "1px solid oklch(1 0 0 / 10%)" }}
-      >
-        <motion.div
-          animate={{ rotate: [0, 360] }}
-          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+        style={{ background: "linear-gradient(135deg, oklch(0.12 0.04 265) 0%, oklch(0.10 0.02 265) 100%)", border: "1px solid oklch(1 0 0 / 10%)" }}>
+        <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
           className="absolute inset-0 -z-10 opacity-25"
-          style={{ background: "conic-gradient(from 0deg, transparent, oklch(0.72 0.19 255 / 40%), transparent 50%)" }}
-        />
+          style={{ background: "conic-gradient(from 0deg, transparent, oklch(0.72 0.19 255 / 40%), transparent 50%)" }} />
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Ready to see your first algorithm?</h2>
         <p className="text-sm mt-2 mx-auto max-w-md" style={{ color: "oklch(0.60 0.04 255)" }}>Bubble sort is a great place to start. Then graduate to graphs and DP when you're hooked.</p>
         <div className="mt-5 flex justify-center gap-2 flex-wrap">
@@ -1040,411 +1147,13 @@ function Index() {
             </Link>
           </motion.div>
           <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.96 }}>
-            <Link to="/dp" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium"
+            <Link to="/graph" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium"
               style={{ background: "oklch(1 0 0 / 6%)", color: "oklch(0.85 0.01 255)", border: "1px solid oklch(1 0 0 / 10%)" }}>
-              Or jump to DP
+              Or jump to Graphs
             </Link>
           </motion.div>
         </div>
       </motion.section>
-
-      {/* ───────── Footer ───────── */}
-      <motion.footer
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        className="text-center text-xs pt-4 pb-2"
-        style={{ color: "oklch(0.45 0.04 255)" }}
-      >
-        Built with TanStack Start, React, Three.js & a lot of{" "}
-        <motion.span
-          animate={{ scale: [1, 1.25, 1] }}
-          transition={{ duration: 1.2, repeat: Infinity }}
-          className="inline-block"
-          style={{ color: "oklch(0.72 0.19 255)" }}
-        >♥</motion.span>{" "}
-        for algorithms.
-      </motion.footer>
     </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// New interactive animated sections
-// ─────────────────────────────────────────────────────────────────────────────
-
-const BIG_O_CURVES: { name: string; color: string; fn: (n: number) => number; tag: string }[] = [
-  { name: "O(1)",      color: "oklch(0.75 0.18 162)", fn: () => 1,                  tag: "constant" },
-  { name: "O(log n)",  color: "oklch(0.78 0.16 200)", fn: (n) => Math.log2(n + 1),  tag: "Binary Search" },
-  { name: "O(n)",      color: "oklch(0.78 0.18 85)",  fn: (n) => n,                 tag: "Linear scan" },
-  { name: "O(n log n)",color: "oklch(0.72 0.19 255)", fn: (n) => n * Math.log2(n + 1), tag: "Quick / Merge" },
-  { name: "O(n²)",     color: "oklch(0.74 0.20 30)",  fn: (n) => n * n,             tag: "Bubble / Selection" },
-];
-
-function BigOSection() {
-  const [n, setN] = useState(40);
-  const samples = 60;
-  // normalize for visualization
-  const maxAt = Math.max(...BIG_O_CURVES.map((c) => c.fn(samples)));
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.6 }}
-      className="space-y-4"
-    >
-      <header>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>
-          Big-O playground
-        </h2>
-        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
-          Drag the slider — watch how each complexity class scales with input size.
-        </p>
-      </header>
-      <div
-        className="rounded-2xl p-5 grid gap-5 lg:grid-cols-[1fr_260px]"
-        style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
-      >
-        <div className="relative h-[220px] rounded-xl overflow-hidden"
-          style={{ background: "oklch(0.07 0.02 265)", border: "1px solid oklch(1 0 0 / 6%)" }}>
-          {/* gridlines */}
-          {[0.25, 0.5, 0.75].map((p) => (
-            <div key={p} className="absolute left-0 right-0" style={{ top: `${p * 100}%`, height: 1, background: "oklch(1 0 0 / 5%)" }} />
-          ))}
-          <svg viewBox={`0 0 ${samples} 100`} preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-            {BIG_O_CURVES.map((c) => {
-              const pts = Array.from({ length: samples }, (_, i) => {
-                const y = 100 - Math.min(100, (c.fn(i) / maxAt) * 100);
-                return `${i},${y.toFixed(2)}`;
-              }).join(" ");
-              return (
-                <motion.polyline
-                  key={c.name}
-                  fill="none"
-                  stroke={c.color}
-                  strokeWidth="0.7"
-                  strokeLinecap="round"
-                  points={pts}
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  whileInView={{ pathLength: 1, opacity: 0.95 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 1.4, ease: "easeOut" }}
-                />
-              );
-            })}
-            {/* n cursor */}
-            <line x1={n} x2={n} y1="0" y2="100" stroke="oklch(1 0 0 / 25%)" strokeWidth="0.4" strokeDasharray="1 1" />
-          </svg>
-          <div className="absolute top-2 left-3 text-[10px] font-mono uppercase tracking-widest" style={{ color: "oklch(0.50 0.04 255)" }}>
-            growth · n = {n}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "oklch(0.50 0.04 255)" }}>
-            Input size · n
-          </label>
-          <input type="range" min={4} max={60} value={n} onChange={(e) => setN(Number(e.target.value))} className="w-full accent-[oklch(0.72_0.19_255)]" />
-          <ul className="space-y-1.5 text-xs">
-            {BIG_O_CURVES.map((c) => {
-              const ops = c.fn(n);
-              return (
-                <li key={c.name} className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg"
-                  style={{ background: `${c.color}10`, border: `1px solid ${c.color}25` }}>
-                  <span className="flex items-center gap-2">
-                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: c.color }} />
-                    <span className="font-mono" style={{ color: c.color }}>{c.name}</span>
-                    <span className="text-[10px]" style={{ color: "oklch(0.50 0.04 255)" }}>{c.tag}</span>
-                  </span>
-                  <motion.span
-                    key={ops}
-                    initial={{ scale: 1.2, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="font-mono text-[11px]"
-                    style={{ color: "oklch(0.85 0.02 255)" }}
-                  >
-                    ≈ {ops < 1000 ? Math.round(ops) : ops.toExponential(1)}
-                  </motion.span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
-    </motion.section>
-  );
-}
-
-// ─── Sort race: animated bar charts for several algos sorting the same array ──
-type RaceAlgo = { name: string; color: string; gen: (a: number[]) => Generator<{ array: number[] }, void, unknown> };
-
-function* genQuick(a: number[]) {
-  const arr = [...a];
-  function* qs(l: number, r: number): Generator<{ array: number[] }, void, unknown> {
-    if (l >= r) return;
-    const p = arr[r]; let i = l;
-    for (let j = l; j < r; j++) {
-      if (arr[j] < p) { [arr[i], arr[j]] = [arr[j], arr[i]]; i++; yield { array: [...arr] }; }
-    }
-    [arr[i], arr[r]] = [arr[r], arr[i]];
-    yield { array: [...arr] };
-    yield* qs(l, i - 1); yield* qs(i + 1, r);
-  }
-  yield* qs(0, arr.length - 1);
-}
-function* genBubble(a: number[]) {
-  const arr = [...a]; const n = arr.length;
-  for (let i = 0; i < n - 1; i++) for (let j = 0; j < n - 1 - i; j++) {
-    if (arr[j] > arr[j + 1]) { [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]]; yield { array: [...arr] }; }
-  }
-}
-function* genInsertion(a: number[]) {
-  const arr = [...a];
-  for (let i = 1; i < arr.length; i++) {
-    let j = i;
-    while (j > 0 && arr[j - 1] > arr[j]) { [arr[j - 1], arr[j]] = [arr[j], arr[j - 1]]; j--; yield { array: [...arr] }; }
-  }
-}
-function* genSelection(a: number[]) {
-  const arr = [...a]; const n = arr.length;
-  for (let i = 0; i < n; i++) {
-    let m = i;
-    for (let j = i + 1; j < n; j++) if (arr[j] < arr[m]) m = j;
-    if (m !== i) { [arr[i], arr[m]] = [arr[m], arr[i]]; yield { array: [...arr] }; }
-  }
-}
-
-const RACE_ALGOS: RaceAlgo[] = [
-  { name: "Quick",     color: "oklch(0.72 0.19 255)", gen: genQuick },
-  { name: "Insertion", color: "oklch(0.82 0.18 85)",  gen: genInsertion },
-  { name: "Selection", color: "oklch(0.75 0.18 162)", gen: genSelection },
-  { name: "Bubble",    color: "oklch(0.74 0.20 30)",  gen: genBubble },
-];
-
-function SortRaceSection() {
-  const [tick, setTick] = useState(0);
-  const [seed, setSeed] = useState(0);
-
-  const initial = useMemoArray(seed);
-  const runners = useRef<{ arr: number[]; it: Generator<{ array: number[] }, void, unknown>; done: boolean; ops: number }[]>([]);
-  const [snap, setSnap] = useState<{ arr: number[]; done: boolean; ops: number }[]>([]);
-
-  useEffect(() => {
-    runners.current = RACE_ALGOS.map((a) => ({ arr: [...initial], it: a.gen(initial), done: false, ops: 0 }));
-    setSnap(runners.current.map((r) => ({ arr: [...r.arr], done: false, ops: 0 })));
-    setTick(0);
-  }, [initial]);
-
-  useEffect(() => {
-    let raf = 0;
-    let last = 0;
-    const loop = (t: number) => {
-      raf = requestAnimationFrame(loop);
-      if (t - last < 32) return;
-      last = t;
-      let changed = false;
-      for (const r of runners.current) {
-        if (r.done) continue;
-        const next = r.it.next();
-        if (next.done) { r.done = true; changed = true; continue; }
-        r.arr = next.value.array;
-        r.ops++;
-        changed = true;
-      }
-      if (changed) {
-        setSnap(runners.current.map((r) => ({ arr: [...r.arr], done: r.done, ops: r.ops })));
-        setTick((x) => x + 1);
-      }
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [seed]);
-
-  const allDone = snap.length > 0 && snap.every((r) => r.done);
-
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.6 }}
-      className="space-y-4"
-    >
-      <header className="flex items-end justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>
-            Sort race · live
-          </h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
-            Same array, four algorithms — watch them finish in very different times.
-          </p>
-        </div>
-        <button
-          onClick={() => setSeed((s) => s + 1)}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-105"
-          style={{ background: "oklch(0.72 0.19 255 / 14%)", color: "oklch(0.72 0.19 255)", border: "1px solid oklch(0.72 0.19 255 / 35%)" }}
-        >
-          {allDone ? "↻ Race again" : "↻ Restart"}
-        </button>
-      </header>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {RACE_ALGOS.map((a, i) => {
-          const s = snap[i] ?? { arr: initial, done: false, ops: 0 };
-          const max = Math.max(...s.arr, 1);
-          return (
-            <div key={a.name}
-              className="rounded-2xl p-4 relative overflow-hidden"
-              style={{ background: "oklch(0.10 0.02 265)", border: `1px solid ${s.done ? a.color + "55" : "oklch(1 0 0 / 8%)"}`,
-                       boxShadow: s.done ? `0 0 24px ${a.color}25` : "none", transition: "all 200ms" }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold" style={{ color: a.color }}>{a.name}</span>
-                <span className="text-[10px] font-mono" style={{ color: s.done ? a.color : "oklch(0.50 0.04 255)" }}>
-                  {s.done ? "✓ done" : "running"} · {s.ops} ops
-                </span>
-              </div>
-              <div className="flex items-end gap-[2px] h-20">
-                {s.arr.map((v, idx) => (
-                  <div key={idx} className="flex-1 rounded-t" style={{
-                    height: `${(v / max) * 100}%`,
-                    background: s.done ? a.color : `${a.color}80`,
-                    minWidth: "1px",
-                  }} />
-                ))}
-              </div>
-              <div className="absolute top-2 right-2 text-[9px] font-mono"
-                style={{ color: "oklch(0.40 0.04 255)" }}>
-                #{i + 1}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="text-[10px] text-center font-mono" style={{ color: "oklch(0.40 0.04 255)" }}>
-        frame {tick}
-      </p>
-    </motion.section>
-  );
-}
-
-function useMemoArray(seed: number) {
-  return useMemo(() => {
-    // deterministic-ish shuffle from seed
-    let x = (seed + 1) * 9973;
-    const rng = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 0xffffffff; };
-    const n = 24;
-    const arr = Array.from({ length: n }, (_, i) => i + 1);
-    for (let i = n - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }, [seed]);
-}
-
-// ─── Spotlight: a rotating tile that hand-picks one algorithm at a time ───
-const SPOTLIGHT_ITEMS = [
-  { name: "Dijkstra",        category: "Graph",       color: "oklch(0.75 0.18 310)", to: "/graph",       blurb: "Greedy single-source shortest path on non-negative weights — the workhorse of routing." },
-  { name: "A* Search",       category: "Pathfinding", color: "oklch(0.68 0.22 22)",  to: "/pathfinding", blurb: "Dijkstra + a heuristic that pulls the frontier toward the goal — fast and optimal with admissible h." },
-  { name: "Bellman-Ford",    category: "Graph",       color: "oklch(0.74 0.20 30)",  to: "/graph",       blurb: "Relax every edge V-1 times — slower than Dijkstra, but handles negative weights." },
-  { name: "Floyd-Warshall",  category: "Graph",       color: "oklch(0.78 0.18 200)", to: "/graph",       blurb: "Dynamic programming for ALL-pairs shortest paths in O(V³). Compact and elegant." },
-  { name: "Kruskal MST",     category: "Graph",       color: "oklch(0.76 0.18 60)",  to: "/graph",       blurb: "Sort edges, union-find to skip cycles. A perfect first taste of disjoint-set union." },
-  { name: "Prim MST",        category: "Graph",       color: "oklch(0.72 0.22 180)", to: "/graph",       blurb: "Grow a tree by always adding the cheapest edge crossing the cut. Greedy and beautiful." },
-  { name: "Quick Sort",      category: "Sorting",     color: "oklch(0.72 0.19 255)", to: "/sorting",     blurb: "Pick a pivot, partition, recurse. Average O(n log n) with cache-friendly access." },
-  { name: "Binary Search",   category: "Searching",   color: "oklch(0.75 0.18 162)", to: "/searching",   blurb: "Halve the search space every step — the canonical O(log n) algorithm." },
-];
-
-function SpotlightSection() {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setI((x) => (x + 1) % SPOTLIGHT_ITEMS.length), 3800);
-    return () => clearInterval(id);
-  }, []);
-  const cur = SPOTLIGHT_ITEMS[i];
-
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.6 }}
-      className="space-y-4"
-    >
-      <header>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>
-          Algorithm spotlight
-        </h2>
-        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>
-          Auto-rotating. Click a chip to jump straight to it.
-        </p>
-      </header>
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-        <motion.div
-          key={cur.name}
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-2xl p-6 relative overflow-hidden"
-          style={{
-            background: `linear-gradient(135deg, ${cur.color}18 0%, oklch(0.10 0.02 265) 70%)`,
-            border: `1px solid ${cur.color}40`,
-            boxShadow: `0 12px 40px ${cur.color}20`,
-          }}
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-16 -right-16 w-48 h-48 rounded-full blur-3xl opacity-40"
-            style={{ background: `conic-gradient(from 0deg, ${cur.color}, transparent 60%)` }}
-          />
-          <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: cur.color }}>
-            {cur.category}
-          </span>
-          <h3 className="text-2xl sm:text-3xl font-bold mt-2" style={{ letterSpacing: "-0.025em" }}>
-            {cur.name}
-          </h3>
-          <p className="text-sm mt-3 max-w-md" style={{ color: "oklch(0.72 0.02 255)" }}>
-            {cur.blurb}
-          </p>
-          <Link
-            to={cur.to}
-            className="inline-flex items-center gap-1.5 mt-5 px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-105"
-            style={{ background: cur.color, color: "oklch(0.08 0.02 265)" }}
-          >
-            Visualize {cur.name} →
-          </Link>
-          {/* progress dots */}
-          <div className="flex gap-1 mt-6">
-            {SPOTLIGHT_ITEMS.map((_, k) => (
-              <div key={k} className="h-1 rounded-full transition-all"
-                style={{
-                  width: k === i ? 24 : 8,
-                  background: k === i ? cur.color : "oklch(1 0 0 / 12%)",
-                }}
-              />
-            ))}
-          </div>
-        </motion.div>
-
-        <div className="grid grid-cols-2 gap-2 content-start">
-          {SPOTLIGHT_ITEMS.map((it, k) => (
-            <button
-              key={it.name}
-              onClick={() => setI(k)}
-              className="text-left rounded-xl px-3 py-2 text-xs transition-all hover:-translate-y-0.5"
-              style={{
-                background: k === i ? `${it.color}1f` : "oklch(0.10 0.02 265)",
-                border: `1px solid ${k === i ? it.color + "60" : "oklch(1 0 0 / 8%)"}`,
-                color: k === i ? it.color : "oklch(0.70 0.04 255)",
-              }}
-            >
-              <div className="font-semibold">{it.name}</div>
-              <div className="text-[10px] mt-0.5" style={{ color: "oklch(0.45 0.04 255)" }}>{it.category}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </motion.section>
   );
 }

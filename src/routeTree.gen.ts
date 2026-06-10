@@ -15,6 +15,7 @@ import { Route as SortingRouteImport } from './routes/sorting'
 import { Route as SearchingRouteImport } from './routes/searching'
 import { Route as PathfindingRouteImport } from './routes/pathfinding'
 import { Route as NqueensRouteImport } from './routes/nqueens'
+import { Route as LibraryRouteImport } from './routes/library'
 import { Route as KnightsRouteImport } from './routes/knights'
 import { Route as HanoiRouteImport } from './routes/hanoi'
 import { Route as GraphRouteImport } from './routes/graph'
@@ -51,6 +52,11 @@ const NqueensRoute = NqueensRouteImport.update({
   path: '/nqueens',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KnightsRoute = KnightsRouteImport.update({
   id: '/knights',
   path: '/knights',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
   '/knights': typeof KnightsRoute
+  '/library': typeof LibraryRoute
   '/nqueens': typeof NqueensRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
   '/knights': typeof KnightsRoute
+  '/library': typeof LibraryRoute
   '/nqueens': typeof NqueensRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
   '/knights': typeof KnightsRoute
+  '/library': typeof LibraryRoute
   '/nqueens': typeof NqueensRoute
   '/pathfinding': typeof PathfindingRoute
   '/searching': typeof SearchingRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/graph'
     | '/hanoi'
     | '/knights'
+    | '/library'
     | '/nqueens'
     | '/pathfinding'
     | '/searching'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/graph'
     | '/hanoi'
     | '/knights'
+    | '/library'
     | '/nqueens'
     | '/pathfinding'
     | '/searching'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/graph'
     | '/hanoi'
     | '/knights'
+    | '/library'
     | '/nqueens'
     | '/pathfinding'
     | '/searching'
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   GraphRoute: typeof GraphRoute
   HanoiRoute: typeof HanoiRoute
   KnightsRoute: typeof KnightsRoute
+  LibraryRoute: typeof LibraryRoute
   NqueensRoute: typeof NqueensRoute
   PathfindingRoute: typeof PathfindingRoute
   SearchingRoute: typeof SearchingRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NqueensRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/knights': {
       id: '/knights'
       path: '/knights'
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   GraphRoute: GraphRoute,
   HanoiRoute: HanoiRoute,
   KnightsRoute: KnightsRoute,
+  LibraryRoute: LibraryRoute,
   NqueensRoute: NqueensRoute,
   PathfindingRoute: PathfindingRoute,
   SearchingRoute: SearchingRoute,

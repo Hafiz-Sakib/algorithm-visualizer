@@ -10,7 +10,8 @@ export type PySection =
   | "graph"
   | "pathfinding"
   | "dp"
-  | "backtracking";
+  | "backtracking"
+  | "library";
 
 export interface PySnippet {
   code: string;
@@ -741,6 +742,78 @@ long long primMST(const vector<vector<pair<int,int>>>& g, int start) {
 }
 `),
     },
+    "Bellman-Ford": {
+      time: "O(V·E)", space: "O(V)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+struct Edge { int u, v, w; };
+
+// Returns dist[] or empty vector if a negative cycle is reachable from src.
+vector<long long> bellmanFord(int n, vector<Edge>& edges, int src) {
+    const long long INF = LLONG_MAX / 4;
+    vector<long long> dist(n, INF);
+    dist[src] = 0;
+    for (int i = 0; i < n - 1; ++i)
+        for (auto& e : edges)
+            if (dist[e.u] + e.w < dist[e.v])
+                dist[e.v] = dist[e.u] + e.w;
+    // One more pass detects negative cycles.
+    for (auto& e : edges)
+        if (dist[e.u] + e.w < dist[e.v]) return {}; // negative cycle
+    return dist;
+}
+`),
+    },
+    "Floyd-Warshall": {
+      time: "O(V³)", space: "O(V²)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// All-pairs shortest paths. dist[i][j] = INF means unreachable.
+void floydWarshall(vector<vector<long long>>& dist) {
+    int n = dist.size();
+    for (int k = 0; k < n; ++k)
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j)
+                if (dist[i][k] + dist[k][j] < dist[i][j])
+                    dist[i][j] = dist[i][k] + dist[k][j];
+}
+`),
+    },
+    "Kruskal MST": {
+      time: "O(E log E)", space: "O(V)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+struct DSU {
+    vector<int> p, r;
+    DSU(int n) : p(n), r(n, 0) { iota(p.begin(), p.end(), 0); }
+    int find(int x) { return p[x] == x ? x : p[x] = find(p[x]); }
+    bool unite(int a, int b) {
+        a = find(a); b = find(b);
+        if (a == b) return false;
+        if (r[a] < r[b]) swap(a, b);
+        p[b] = a; if (r[a] == r[b]) r[a]++;
+        return true;
+    }
+};
+
+struct Edge { int u, v, w; };
+
+long long kruskalMST(int n, vector<Edge> edges) {
+    sort(edges.begin(), edges.end(),
+         [](auto& a, auto& b) { return a.w < b.w; });
+    DSU dsu(n); long long total = 0; int taken = 0;
+    for (auto& e : edges)
+        if (dsu.unite(e.u, e.v)) { total += e.w; if (++taken == n - 1) break; }
+    return total;
+}
+`),
+    },
   },
 
   // ────────────────────────────── PATHFINDING ──────────────────────────────
@@ -1079,4 +1152,339 @@ vector<string> solveHanoi(int n) {
 `),
     },
   },
+
+  // ────────────────────────────── LIBRARY (15 extra algorithms) ──────────────
+  library: {
+    "Boyer-Moore": {
+      time: "O(n/m) avg, O(nm) worst", space: "O(σ)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Bad-character heuristic. Returns first match index, or -1.
+int boyerMoore(const string& text, const string& pat) {
+    int n = text.size(), m = pat.size();
+    if (m == 0) return 0;
+    vector<int> bad(256, -1);
+    for (int i = 0; i < m; ++i) bad[(unsigned char)pat[i]] = i;
+    int s = 0;
+    while (s <= n - m) {
+        int j = m - 1;
+        while (j >= 0 && pat[j] == text[s + j]) --j;
+        if (j < 0) return s;
+        s += max(1, j - bad[(unsigned char)text[s + j]]);
+    }
+    return -1;
+}
+`),
+    },
+    "Manacher": {
+      time: "O(n)", space: "O(n)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Longest palindromic substring in linear time.
+string manacher(const string& s) {
+    string t = "^"; for (char c : s) { t += '#'; t += c; } t += "#$";
+    int n = t.size(); vector<int> p(n, 0);
+    int c = 0, r = 0;
+    for (int i = 1; i < n - 1; ++i) {
+        if (i < r) p[i] = min(r - i, p[2 * c - i]);
+        while (t[i + p[i] + 1] == t[i - p[i] - 1]) ++p[i];
+        if (i + p[i] > r) { c = i; r = i + p[i]; }
+    }
+    int len = 0, ctr = 0;
+    for (int i = 1; i < n - 1; ++i)
+        if (p[i] > len) { len = p[i]; ctr = i; }
+    return s.substr((ctr - len) / 2, len);
+}
+`),
+    },
+    "Sieve of Eratosthenes": {
+      time: "O(n log log n)", space: "O(n)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// All primes up to n.
+vector<int> sieve(int n) {
+    vector<bool> isPrime(n + 1, true);
+    isPrime[0] = isPrime[1] = false;
+    for (long long i = 2; i * i <= n; ++i)
+        if (isPrime[i])
+            for (long long j = i * i; j <= n; j += i) isPrime[j] = false;
+    vector<int> primes;
+    for (int i = 2; i <= n; ++i) if (isPrime[i]) primes.push_back(i);
+    return primes;
+}
+`),
+    },
+    "Euclidean GCD": {
+      time: "O(log min(a,b))", space: "O(1)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+long long gcd(long long a, long long b) {
+    while (b) { a %= b; swap(a, b); }
+    return a;
+}
+
+// Extended: ax + by = gcd(a, b).
+long long extgcd(long long a, long long b, long long& x, long long& y) {
+    if (!b) { x = 1; y = 0; return a; }
+    long long x1, y1;
+    long long g = extgcd(b, a % b, x1, y1);
+    x = y1; y = x1 - (a / b) * y1;
+    return g;
+}
+`),
+    },
+    "Fast Modular Exponentiation": {
+      time: "O(log e)", space: "O(1)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// (base^exp) mod m using square-and-multiply.
+long long powmod(long long base, long long exp, long long m) {
+    long long result = 1 % m;
+    base %= m;
+    while (exp > 0) {
+        if (exp & 1) result = result * base % m;
+        base = base * base % m;
+        exp >>= 1;
+    }
+    return result;
+}
+`),
+    },
+    "Matrix Chain Multiplication": {
+      time: "O(n³)", space: "O(n²)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// p has n+1 entries; matrix i has dim p[i] x p[i+1].
+// Returns minimum scalar multiplications.
+long long matrixChain(const vector<int>& p) {
+    int n = p.size() - 1;
+    vector<vector<long long>> m(n, vector<long long>(n, 0));
+    for (int L = 2; L <= n; ++L)
+        for (int i = 0; i + L <= n; ++i) {
+            int j = i + L - 1;
+            m[i][j] = LLONG_MAX;
+            for (int k = i; k < j; ++k) {
+                long long q = m[i][k] + m[k+1][j] + 1LL*p[i]*p[k+1]*p[j+1];
+                if (q < m[i][j]) m[i][j] = q;
+            }
+        }
+    return m[0][n-1];
+}
+`),
+    },
+    "Rod Cutting": {
+      time: "O(n²)", space: "O(n)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// price[i] = price of rod length i+1. Returns max revenue for rod length n.
+int rodCutting(const vector<int>& price, int n) {
+    vector<int> dp(n + 1, 0);
+    for (int i = 1; i <= n; ++i)
+        for (int j = 0; j < i; ++j)
+            dp[i] = max(dp[i], price[j] + dp[i - j - 1]);
+    return dp[n];
+}
+`),
+    },
+    "Subset Sum": {
+      time: "O(n·S)", space: "O(S)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Can any subset of nums sum to target?
+bool subsetSum(const vector<int>& nums, int target) {
+    vector<bool> dp(target + 1, false);
+    dp[0] = true;
+    for (int x : nums)
+        for (int s = target; s >= x; --s) dp[s] = dp[s] || dp[s - x];
+    return dp[target];
+}
+`),
+    },
+    "Union-Find (DSU)": {
+      time: "O(α(n))", space: "O(n)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Disjoint-set with path compression and union-by-rank.
+struct DSU {
+    vector<int> parent, rank_;
+    DSU(int n) : parent(n), rank_(n, 0) { iota(parent.begin(), parent.end(), 0); }
+    int find(int x) { return parent[x] == x ? x : parent[x] = find(parent[x]); }
+    bool unite(int a, int b) {
+        a = find(a); b = find(b);
+        if (a == b) return false;
+        if (rank_[a] < rank_[b]) swap(a, b);
+        parent[b] = a;
+        if (rank_[a] == rank_[b]) ++rank_[a];
+        return true;
+    }
 };
+`),
+    },
+    "Fenwick Tree (BIT)": {
+      time: "O(log n) update/query", space: "O(n)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// 1-indexed Binary Indexed Tree for prefix sums.
+struct Fenwick {
+    vector<long long> bit;
+    Fenwick(int n) : bit(n + 1, 0) {}
+    void update(int i, long long v) {
+        for (; i < (int)bit.size(); i += i & -i) bit[i] += v;
+    }
+    long long query(int i) {
+        long long s = 0;
+        for (; i > 0; i -= i & -i) s += bit[i];
+        return s;
+    }
+    long long range(int l, int r) { return query(r) - query(l - 1); }
+};
+`),
+    },
+    "Segment Tree": {
+      time: "O(log n) per op", space: "O(n)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Point update, range sum query.
+struct SegTree {
+    int n; vector<long long> t;
+    SegTree(int n) : n(n), t(4 * n, 0) {}
+    void update(int node, int l, int r, int idx, long long v) {
+        if (l == r) { t[node] = v; return; }
+        int m = (l + r) / 2;
+        if (idx <= m) update(node*2, l, m, idx, v);
+        else update(node*2+1, m+1, r, idx, v);
+        t[node] = t[node*2] + t[node*2+1];
+    }
+    long long query(int node, int l, int r, int ql, int qr) {
+        if (qr < l || r < ql) return 0;
+        if (ql <= l && r <= qr) return t[node];
+        int m = (l + r) / 2;
+        return query(node*2, l, m, ql, qr) + query(node*2+1, m+1, r, ql, qr);
+    }
+};
+`),
+    },
+    "Kosaraju SCC": {
+      time: "O(V+E)", space: "O(V)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Strongly-connected components by two DFS passes.
+struct Kosaraju {
+    int n; vector<vector<int>> g, gr; vector<bool> seen; vector<int> order, comp;
+    Kosaraju(int n) : n(n), g(n), gr(n), seen(n, false), comp(n, -1) {}
+    void add(int u, int v) { g[u].push_back(v); gr[v].push_back(u); }
+    void dfs1(int u) { seen[u] = true; for (int v : g[u]) if (!seen[v]) dfs1(v); order.push_back(u); }
+    void dfs2(int u, int c) { comp[u] = c; for (int v : gr[u]) if (comp[v] == -1) dfs2(v, c); }
+    int run() {
+        for (int i = 0; i < n; ++i) if (!seen[i]) dfs1(i);
+        int c = 0;
+        for (int i = n - 1; i >= 0; --i) if (comp[order[i]] == -1) dfs2(order[i], c++);
+        return c;
+    }
+};
+`),
+    },
+    "Tarjan Bridges": {
+      time: "O(V+E)", space: "O(V)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Bridges = edges whose removal disconnects the graph.
+struct Bridges {
+    int n, timer = 0;
+    vector<vector<int>> g; vector<int> tin, low; vector<bool> seen;
+    vector<pair<int,int>> bridges;
+    Bridges(int n) : n(n), g(n), tin(n, -1), low(n, -1), seen(n, false) {}
+    void add(int u, int v) { g[u].push_back(v); g[v].push_back(u); }
+    void dfs(int u, int p) {
+        seen[u] = true; tin[u] = low[u] = timer++;
+        for (int v : g[u]) {
+            if (v == p) continue;
+            if (seen[v]) low[u] = min(low[u], tin[v]);
+            else {
+                dfs(v, u); low[u] = min(low[u], low[v]);
+                if (low[v] > tin[u]) bridges.push_back({u, v});
+            }
+        }
+    }
+    vector<pair<int,int>> run() { for (int i = 0; i < n; ++i) if (!seen[i]) dfs(i, -1); return bridges; }
+};
+`),
+    },
+    "Bipartite Check": {
+      time: "O(V+E)", space: "O(V)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// 2-color via BFS. Returns true iff bipartite.
+bool isBipartite(const vector<vector<int>>& g) {
+    int n = g.size();
+    vector<int> color(n, -1);
+    for (int s = 0; s < n; ++s) {
+        if (color[s] != -1) continue;
+        queue<int> q; q.push(s); color[s] = 0;
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            for (int v : g[u]) {
+                if (color[v] == -1) { color[v] = color[u] ^ 1; q.push(v); }
+                else if (color[v] == color[u]) return false;
+            }
+        }
+    }
+    return true;
+}
+`),
+    },
+    "Morris Traversal": {
+      time: "O(n)", space: "O(1)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+struct Node { int val; Node *left = nullptr, *right = nullptr; };
+
+// Inorder traversal of a binary tree without recursion or stack.
+vector<int> morrisInorder(Node* root) {
+    vector<int> out; Node* cur = root;
+    while (cur) {
+        if (!cur->left) { out.push_back(cur->val); cur = cur->right; }
+        else {
+            Node* pre = cur->left;
+            while (pre->right && pre->right != cur) pre = pre->right;
+            if (!pre->right) { pre->right = cur; cur = cur->left; }
+            else { pre->right = nullptr; out.push_back(cur->val); cur = cur->right; }
+        }
+    }
+    return out;
+}
+`),
+    },
+  },
+};
+
