@@ -4,7 +4,7 @@
 
 ### Interactive Algorithm Visualizer with C++ Source Code
 
-**Visualize 60+ classic algorithms with smooth animations and line-by-line C++ STL source — from sorting and searching to graphs, dynamic programming, pathfinding, and beyond.**
+**Visualize 65+ classic algorithms with smooth animations and line-by-line C++ STL source — from sorting and searching to graphs, dynamic programming, pathfinding, and beyond.**
 
 [![React](https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
@@ -24,13 +24,14 @@
 
 ![AlgoViz Homepage](./public/algo-visualizer_home.png)
 
-> _Screenshot of the homepage with Three.js 3D hero animation, algorithm cards, and dark premium UI._
+> _Homepage with the 2D Quick Sort / Binary Search hero, 3D A\* + graph scenes, algorithm cards, and dark premium UI._
 
 ---
 
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [What's New](#-whats-new)
 - [Live Demo](#-live-demo)
 - [Features](#-features)
 - [Algorithm Coverage](#-algorithm-coverage)
@@ -51,9 +52,21 @@
 
 **AlgoViz** is a premium, browser-based algorithm visualization platform built entirely in React + TypeScript. Every supported algorithm runs as a **step-by-step generator** — each state transition is rendered as a frame — so you can pause, rewind, and inspect exactly what's happening at every moment.
 
-Alongside every visualization, a **live C++ code panel** highlights the exact line of source code executing at that step. This makes AlgoViz equally useful as a learning tool and a reference for competitive programming.
+Alongside every visualization, a **live C++ code panel** highlights the exact line of source code executing at that step — tinted in the algorithm's own accent color, with a ▶ pointer and auto-scroll. This makes AlgoViz equally useful as a learning tool and a reference for competitive programming.
 
-The homepage features a full Three.js 3D scene demonstrating Quick Sort and Binary Search in real time, plus a 3D BFS/DFS graph traversal widget — all running client-side with zero dependencies on backend compute.
+The homepage hero animates Quick Sort and Binary Search in crisp 2D (bars that reorder, a live binary-search probe), plus 3D scenes for A\* pathfinding and BFS/DFS graph traversal — all running client-side with zero dependencies on backend compute.
+
+---
+
+## 🆕 What's New
+
+- **2D hero** — Quick Sort and Binary Search moved from WebGL to crisp 2D; sort bars now physically reorder, with value labels on top and a scrubbable timeline. A\* stays 3D.
+- **Executing-line highlight** — code panel tints the running line in the algorithm's accent color (`color-mix`), with a ▶ pointer and auto-scroll.
+- **Redesigned navigation** — compact bar + "Explore all" mega-menu grouped by category (no more long link row).
+- **Themed dropdowns** — `ThemedSelect` replaces native OS-white menus on Hanoi / N-Queens / Knight's Tour.
+- **Responsive + overlap fixes** — Tower of Hanoi peg labels no longer overlap; layout holds down to mobile widths.
+- **5 new algorithms** — Pancake Sort, Odd-Even Sort, Fibonacci Search, Longest Palindromic Substring, Subset Sum.
+- **Keyboard controls** — Space play/pause, ← / → step, R reset; `prefers-reduced-motion` respected.
 
 ---
 
@@ -73,14 +86,15 @@ https://your-algviz-deployment.vercel.app
 
 - **Step-by-step playback** — each algorithm emits discrete state frames via JavaScript generators; nothing is pre-baked
 - **Playback controls** — Play, Pause, Step Forward, Step Backward, Reset, with adjustable speed slider
-- **Live C++ code panel** — syntax-highlighted C++ STL source with line highlighting that tracks the current execution step
+- **Live C++ code panel** — syntax-highlighted C++ STL source; the executing line is highlighted with a per-algorithm accent tint (via `color-mix`), a ▶ pointer, and auto-scroll into view
 - **Copy & Download** — copy C++ source to clipboard or download it as a `.cpp` file directly from the code panel
 - **Per-algorithm accent colors** — each algorithm variant has its own OKLCH color for bar/node highlighting
 - **Smooth animations** — Framer Motion powers all transitions, bar height changes, node traversals, and page entries
 
 ### Homepage
 
-- **Three.js 3D hero** — animated Quick Sort (bar mesh, compare/swap highlights) and Binary Search (probe/range highlights) running live inside a WebGL canvas, toggleable between modes
+- **2D hero** — animated Quick Sort (bars physically reorder, compare/swap glow, live value labels on top of each bar) and Binary Search (sliding lo/hi bracket, mid-probe pointer, target outline), toggleable, with a scrubbable + pausable timeline and mode-aware legend
+- **3D A\* pathfinding scene** — WebGL grid showing A\* search open/closed/path cells (kept in Three.js)
 - **3D BFS/DFS graph widget** — 14-node 3D graph with orbiting camera, edge highlights, and traversal order replay (`GraphTraversal3D.tsx`)
 - **Algorithm category cards** — all 12 visualizer sections displayed with icons and descriptions
 - **Full-page scroll animations** — Framer Motion `useScroll` + `useTransform` parallax
@@ -88,8 +102,14 @@ https://your-algviz-deployment.vercel.app
 ### Navigation
 
 - Sticky frosted-glass header with blur backdrop (`oklch(0.08 0.02 265 / 88%)`)
-- Responsive: scrollable desktop nav with per-route accent colors; hamburger mobile drawer
-- Active route highlighting with color-matched underline
+- Compact desktop bar (logo + quick links) plus an **"Explore all" mega-menu** grouping every section into Core / Graphs & Trees / Backtracking / More — each with icon and description
+- Grouped responsive mobile drawer; active route highlighted with a color-matched accent
+- Closes on outside-click and Escape
+
+### Controls & dropdowns
+
+- **Keyboard shortcuts** — Space play/pause, ← / → step, R reset
+- **Themed dropdowns** — custom on-brand select (`ThemedSelect`) replaces native OS-white menus on Hanoi, N-Queens, and Knight's Tour; popup matches each page's accent color
 
 ### Design System
 
@@ -122,6 +142,14 @@ Bar chart visualization. Compare (blue), swap (accent), sorted (green) color sta
 | Quick Sort     | O(n log n) avg  | Pivot partition          |
 | Heap Sort      | O(n log n)      | In-place, heapify        |
 | Shell Sort     | O(n log²n)      | Gap-sequence insertion   |
+| Counting Sort  | O(n + k)        | Non-comparison, integer keys |
+| Radix Sort     | O(d·(n + k))    | Digit-by-digit            |
+| Cocktail Sort  | O(n²)           | Bidirectional bubble      |
+| Gnome Sort     | O(n²)           | Single-pointer back-swap  |
+| Comb Sort      | O(n²/2ᵖ)        | Shrinking-gap bubble      |
+| Cycle Sort     | O(n²)           | Minimal writes            |
+| Pancake Sort   | O(n²)           | Prefix-flip sorting       |
+| Odd-Even Sort  | O(n²)           | Brick sort, parallel-friendly |
 
 ---
 
@@ -137,6 +165,7 @@ Array visualization. Checked (accent), eliminated (dimmed), found (green) states
 | Interpolation Search | O(log log n) avg | Yes             |
 | Exponential Search   | O(log n)         | Yes             |
 | Ternary Search       | O(log₃ n)        | Yes             |
+| Fibonacci Search     | O(log n)         | Yes             |
 
 ---
 
@@ -195,6 +224,7 @@ DP table visualization. Cells fill in real time as subproblems are solved; `high
 | Edit Distance | 2D table, Levenshtein distance        |
 | Coin Change   | 1D DP, minimum coins                  |
 | LIS           | 1D DP, longest increasing subsequence |
+| Subset Sum    | 2D boolean table, target reachability |
 
 ---
 
@@ -209,6 +239,7 @@ Text + pattern visualization. Characters highlighted as matched, mismatched, or 
 | Rabin-Karp           | O(n + m) avg    |
 | Z-Algorithm          | O(n + m)        |
 | Boyer-Moore          | O(n/m) avg      |
+| Longest Palindrome   | O(n²)           |
 
 ---
 
@@ -269,8 +300,10 @@ algorithm-visualizer-main/
 │
 ├── src/
 │   ├── components/
-│   │   ├── Nav.tsx                   # Sticky frosted-glass navbar, mobile drawer
-│   │   ├── PythonCodePanel.tsx       # C++ code panel with syntax highlighting & line tracking
+│   │   ├── Nav.tsx                   # Sticky navbar with "Explore all" mega-menu + mobile drawer
+│   │   ├── HeroViz2D.tsx             # 2D Quick Sort + Binary Search homepage hero
+│   │   ├── ThemedSelect.tsx          # On-brand dropdown (replaces native OS select)
+│   │   ├── PythonCodePanel.tsx       # C++ panel: accent-tinted executing line + auto-scroll
 │   │   ├── GraphTraversal3D.tsx      # Three.js 3D BFS/DFS widget (homepage)
 │   │   └── ui/                       # Full shadcn/ui component library (Radix UI primitives)
 │   │       ├── accordion.tsx
@@ -287,12 +320,12 @@ algorithm-visualizer-main/
 │   │
 │   ├── lib/
 │   │   ├── algorithms/
-│   │   │   ├── sorting.ts            # Bubble, Selection, Insertion, Merge, Quick, Heap, Shell
-│   │   │   ├── searching.ts          # Linear, Binary, Jump, Interpolation, Exponential, Ternary
+│   │   │   ├── sorting.ts            # Bubble…Cycle, Pancake, Odd-Even (15 sorters)
+│   │   │   ├── searching.ts          # Linear, Binary, Jump, Interpolation, Exponential, Ternary, Fibonacci
 │   │   │   ├── graph.ts              # DFS, BFS, Topo, Dijkstra, Bellman-Ford, Floyd, Prim, Kruskal
-│   │   │   ├── dp.ts                 # Fibonacci, LCS, Knapsack, Edit Distance, Coin Change, LIS
+│   │   │   ├── dp.ts                 # Fibonacci, LCS, Knapsack, Edit Distance, Coin Change, LIS, Subset Sum
 │   │   │   ├── pathfinding.ts        # BFS, Dijkstra, A* on grid
-│   │   │   ├── strings.ts            # Naive, KMP, Rabin-Karp, Z-Algo, Boyer-Moore
+│   │   │   ├── strings.ts            # Naive, KMP, Rabin-Karp, Z-Algo, Boyer-Moore, Longest Palindrome
 │   │   │   ├── tree.ts               # BST build + BFS/DFS-In/Pre/Post traversals
 │   │   │   ├── backtracking.ts       # N-Queens, Knight's Tour (Warnsdorff), Tower of Hanoi
 │   │   │   ├── libraryData.ts        # 74-entry algorithm reference library (C++ + explanations)
@@ -310,7 +343,7 @@ algorithm-visualizer-main/
 │   │
 │   ├── routes/
 │   │   ├── __root.tsx                # Root layout (Nav, Toaster, global styles)
-│   │   ├── index.tsx                 # Homepage (Three.js hero, algorithm cards, 3D graph widget)
+│   │   ├── index.tsx                 # Homepage (2D hero, algorithm cards, 3D A* + graph scenes)
 │   │   ├── sorting.tsx               # Sorting visualizer
 │   │   ├── searching.tsx             # Searching visualizer
 │   │   ├── tree.tsx                  # Tree traversal visualizer
@@ -355,7 +388,7 @@ algorithm-visualizer-main/
 | **Build tool**      | Vite                   | 7.x       | Dev server & bundler                |
 | **Styling**         | Tailwind CSS           | 4.x       | Utility-first CSS                   |
 | **Animation**       | Framer Motion          | 12        | Declarative React animations        |
-| **3D Graphics**     | Three.js               | r176      | Hero + graph 3D scenes              |
+| **3D Graphics**     | Three.js               | r176      | A\* pathfinding + graph 3D scenes    |
 | **UI Primitives**   | Radix UI / shadcn/ui   | latest    | Accessible, unstyled components     |
 | **Icons**           | Lucide React           | 0.575     | Icon set                            |
 | **Charts**          | Recharts               | 2.x       | (available, library infrastructure) |
@@ -484,7 +517,7 @@ Contributions are welcome! Here are some ways to help:
 
 1. **Add a new algorithm** to an existing visualizer page (add the generator to the appropriate `src/lib/algorithms/*.ts` file, map its line numbers in `lineMaps.ts`, and register it in the page's algo selector)
 2. **Add a Library entry** — add a new entry to `libraryData.ts` following the existing `entry()` pattern
-3. **New visualizer page** — create a new route in `src/routes/`, register it in `Nav.tsx`, and add a generator file
+3. **New visualizer page** — create a new route in `src/routes/`, add it to a group in `Nav.tsx`, and add a generator file
 4. **Bug fixes** — open an issue or PR
 
 ### Steps
