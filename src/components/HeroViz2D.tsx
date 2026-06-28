@@ -190,11 +190,12 @@ function QuickSort2D({ runKey }: { runKey: number }) {
   // Values are heights; ids are stable identities for layout animation.
   // runKey is an intentional dependency: pressing "Restart" reshuffles.
   const values = useMemo(
-    () => shuffle(Array.from({ length: BAR_COUNT }, (_, i) => (i + 1) / BAR_COUNT)),
+    () => shuffle(Array.from({ length: BAR_COUNT }, (_, i) => i + 1)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [runKey],
   );
-  const { frames, valueOf } = useMemo(() => buildSortFrames(values), [values]);
+  const maxVal = BAR_COUNT;
+  const { frames } = useMemo(() => buildSortFrames(values), [values]);
   const [idx, setIdx] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
@@ -204,7 +205,7 @@ function QuickSort2D({ runKey }: { runKey: number }) {
   useEffect(() => {
     if (paused) return;
     const settling = idx >= frames.length - 1;
-    const delay = settling ? 1500 : idx === 0 ? 700 : 230;
+    const delay = settling ? 1600 : idx === 0 ? 700 : 300;
     const t = setTimeout(() => {
       setIdx((i) => (i >= frames.length - 1 ? 0 : i + 1));
     }, delay);
@@ -214,76 +215,73 @@ function QuickSort2D({ runKey }: { runKey: number }) {
   const frame = frames[idx];
   const progress = frames.length > 1 ? idx / (frames.length - 1) : 0;
 
-  // build slot lookup: barId -> slot index
-  const slotOf = useMemo(() => {
-    const m = new Map<number, number>();
-    frame.order.forEach((id, slot) => m.set(id, slot));
-    return m;
-  }, [frame]);
-
   return (
     <div className="relative h-full w-full select-none" onPointerLeave={() => setHover(null)}>
-      <div className="absolute inset-x-0 bottom-12 top-20 flex items-end justify-center gap-[5px] px-6">
-        {values.map((_, id) => {
-          const slot = slotOf.get(id) ?? id;
-          const v = valueOf(id);
+      {/* Bars are rendered in SLOT order (frame.order) so the DOM order reflects
+          the current arrangement — this is what lets layout animation actually
+          move bars into their sorted positions. Each bar is keyed by its stable
+          id so Framer Motion can tween it from old slot to new slot. */}
+      <div className="absolute inset-x-0 bottom-14 top-[4.5rem] flex items-end justify-center gap-[6px] px-6">
+        {frame.order.map((id) => {
+          const v = values[id];
           const isCompare = frame.compare?.includes(id);
           const isSwap = frame.swapping?.includes(id);
           const isSorted = frame.sorted.has(id);
           const isHover = hover === id;
           let fill = `linear-gradient(180deg, ${C.base}, ${C.baseSoft})`;
           let glow = "none";
+          let labelColor = "#9fb2ff";
           if (isSwap) {
             fill = `linear-gradient(180deg, ${C.swap}, #c43d33)`;
             glow = `0 0 18px ${C.swap}aa`;
+            labelColor = C.swap;
           } else if (isCompare) {
             fill = `linear-gradient(180deg, ${C.compare}, #c79a1f)`;
             glow = `0 0 16px ${C.compare}99`;
+            labelColor = C.compare;
           } else if (isSorted) {
             fill = `linear-gradient(180deg, ${C.sorted}, #1f9c6a)`;
             glow = `0 0 12px ${C.sorted}77`;
+            labelColor = C.sorted;
           }
           if (isHover) glow = `0 0 22px #ffffffaa`;
           return (
             <motion.div
               key={id}
               layout
-              layoutId={`qs-bar-${id}`}
               onPointerEnter={() => setHover(id)}
-              transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.6 }}
-              className="relative flex-1 rounded-t-md origin-bottom"
-              style={{ maxWidth: 26, boxShadow: glow }}
-              animate={{
-                height: `${(0.18 + v * 0.82) * 100}%`,
-                y: isSwap ? -10 : isCompare ? -4 : 0,
-                scale: isHover ? 1.06 : 1,
-              }}
+              transition={{ type: "spring", stiffness: 500, damping: 34, mass: 0.7 }}
+              className="relative flex h-full flex-1 flex-col items-center justify-end"
+              style={{ maxWidth: 30 }}
             >
-              <div className="absolute inset-0 rounded-t-md" style={{ background: fill }} />
-              {/* glossy top */}
-              <div
-                className="absolute inset-x-0 top-0 h-1/3 rounded-t-md opacity-40"
-                style={{
-                  background: "linear-gradient(180deg, rgba(255,255,255,0.5), transparent)",
+              {/* always-visible value label on top of the bar */}
+              <motion.span
+                layout
+                className="mb-1 font-mono text-[9px] font-semibold tabular-nums"
+                style={{ color: labelColor }}
+                animate={{ scale: isCompare || isSwap ? 1.25 : 1 }}
+              >
+                {v}
+              </motion.span>
+              <motion.div
+                layout
+                className="relative w-full rounded-t-md origin-bottom"
+                style={{ boxShadow: glow }}
+                animate={{
+                  height: `${(0.12 + (v / maxVal) * 0.88) * 100}%`,
+                  y: isSwap ? -8 : isCompare ? -3 : 0,
+                  scale: isHover ? 1.05 : 1,
                 }}
-              />
-              <AnimatePresence>
-                {isHover && (
-                  <motion.span
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    className="absolute -top-5 left-1/2 -translate-x-1/2 rounded px-1.5 py-0.5 text-[9px] font-mono"
-                    style={{
-                      background: "rgba(6,8,20,0.9)",
-                      color: C.text,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                    }}
-                  >
-                    {Math.round(v * 99) + 1}
-                  </motion.span>
-                )}
-              </AnimatePresence>
+              >
+                <div className="absolute inset-0 rounded-t-md" style={{ background: fill }} />
+                {/* glossy top */}
+                <div
+                  className="absolute inset-x-0 top-0 h-1/3 rounded-t-md opacity-40"
+                  style={{
+                    background: "linear-gradient(180deg, rgba(255,255,255,0.5), transparent)",
+                  }}
+                />
+              </motion.div>
             </motion.div>
           );
         })}
@@ -299,6 +297,14 @@ function QuickSort2D({ runKey }: { runKey: number }) {
                 ? { c: C.sorted, label: "sorted ✓" }
                 : { c: C.base, label: "partition" },
           { c: C.sorted, label: `${frame.sorted.size}/${BAR_COUNT} placed` },
+        ]}
+      />
+
+      <Legend
+        items={[
+          { c: C.compare, label: "Compare" },
+          { c: C.swap, label: "Swap" },
+          { c: C.sorted, label: "Sorted" },
         ]}
       />
 
@@ -345,7 +351,7 @@ function BinarySearch2D({ runKey }: { runKey: number }) {
   return (
     <div className="relative h-full w-full select-none" onPointerLeave={() => setHover(null)}>
       {/* tiles */}
-      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center gap-2 px-6">
+      <div className="absolute inset-x-0 top-[46%] -translate-y-1/2 flex items-center justify-center gap-2 px-6">
         {values.map((v, i) => {
           const inRange = i >= f.lo && i <= f.hi;
           const isMid = i === f.mid;
@@ -437,6 +443,14 @@ function BinarySearch2D({ runKey }: { runKey: number }) {
         ]}
       />
 
+      <Legend
+        items={[
+          { c: C.range, label: "Search range" },
+          { c: C.probe, label: "Probe (mid)" },
+          { c: C.found, label: "Found" },
+        ]}
+      />
+
       <Timeline
         progress={progress}
         paused={paused}
@@ -457,7 +471,7 @@ function Brackets({ count, lo, hi }: { count: number; lo: number; hi: number }) 
   const rightPct = count > 1 ? (hi / (count - 1)) * 100 : 100;
   const valid = lo <= hi;
   return (
-    <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-1/2 h-16">
+    <div className="pointer-events-none absolute inset-x-6 top-[46%] -translate-y-1/2 h-16">
       <AnimatePresence>
         {valid && (
           <motion.div
@@ -507,6 +521,27 @@ function StatusChips({ chips }: { chips: { c: string; label: string }[] }) {
   );
 }
 
+// ── Mode-aware legend (bottom) ──
+function Legend({ items }: { items: { c: string; label: string }[] }) {
+  return (
+    <div className="absolute bottom-2.5 left-0 right-0 z-10 flex flex-wrap justify-center gap-x-4 gap-y-1 px-3 pointer-events-none">
+      {items.map((it) => (
+        <span
+          key={it.label}
+          className="flex items-center gap-1.5 font-mono text-[10px]"
+          style={{ color: "oklch(0.55 0.04 255)" }}
+        >
+          <span
+            className="inline-block h-2 w-2 rounded-full"
+            style={{ background: it.c, boxShadow: `0 0 6px ${it.c}99` }}
+          />
+          {it.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Scrubbable timeline + play/pause ──
 function Timeline({
   progress,
@@ -533,7 +568,7 @@ function Timeline({
   );
 
   return (
-    <div className="absolute bottom-3 left-4 right-4 z-10 flex items-center gap-2">
+    <div className="absolute bottom-9 left-4 right-4 z-10 flex items-center gap-2">
       <button
         onClick={onToggle}
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] transition-transform hover:scale-110"

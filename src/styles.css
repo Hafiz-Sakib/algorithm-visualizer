@@ -197,8 +197,25 @@ input[type="range"]::-moz-range-thumb {
 }
 .viz-glow-breathe { animation: viz-glow-breathe 1.6s ease-in-out infinite; }
 
+/* Currently-executing code line marker pulse */
+@keyframes code-line-pulse {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
+}
+.code-line-active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 7%), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: code-line-pulse 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .viz-ripple, .viz-pop, .viz-sorted-sweep, .viz-glow-breathe,
+  .code-line-active::after,
   .shimmer-text, .pulse-dot, .float-y, .scanline, .glitch-text {
     animation: none !important;
   }

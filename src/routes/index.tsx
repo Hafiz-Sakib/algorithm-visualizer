@@ -2469,7 +2469,7 @@ function Index() {
           style={{
             background: "oklch(0.08 0.02 265)",
             border: "1px solid oklch(1 0 0 / 10%)",
-            height: "360px",
+            height: "400px",
           }}
         >
           <div
@@ -2481,26 +2481,6 @@ function Index() {
             style={{ background: "oklch(0.75 0.18 162)", transform: "translate(30%, 30%)" }}
           />
           <HeroViz2D />
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-4 pointer-events-none">
-            {[
-              { dot: "#ffd34d", label: "Compare / Probe" },
-              { dot: "#ff6b5e", label: "Swap" },
-              { dot: "#3ddc97", label: "Sorted / Found" },
-              { dot: "#5a7cff", label: "Search Range" },
-            ].map(({ dot, label }) => (
-              <span
-                key={label}
-                className="flex items-center gap-1 text-[10px] font-mono"
-                style={{ color: "oklch(0.50 0.04 255)" }}
-              >
-                <span
-                  className="inline-block w-1.5 h-1.5 rounded-full"
-                  style={{ background: dot }}
-                />
-                {label}
-              </span>
-            ))}
-          </div>
         </motion.div>
       </motion.section>
 

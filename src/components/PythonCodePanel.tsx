@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download } from "lucide-react";
 import { PYTHON_CODES, type PySection } from "../lib/algorithms/python";
 import { LIBRARY_DATA } from "../lib/algorithms/libraryData";
@@ -44,6 +44,28 @@ export function PythonCodePanel({
   }, [snippet]);
 
   const activeSet = useMemo(() => new Set(activeLines), [activeLines]);
+
+  // Auto-scroll the first active (currently-executing) line into view so the
+  // user can always see which line is running, even in long programs.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const firstActive = activeLines.length ? Math.min(...activeLines) : -1;
+  useEffect(() => {
+    if (firstActive < 0) return;
+    const container = bodyRef.current;
+    if (!container) return;
+    const lineEl = container.querySelector<HTMLElement>(`[data-line="${firstActive}"]`);
+    if (!lineEl) return;
+    const cTop = container.scrollTop;
+    const cBottom = cTop + container.clientHeight;
+    const lTop = lineEl.offsetTop;
+    const lBottom = lTop + lineEl.offsetHeight;
+    if (lTop < cTop + 12 || lBottom > cBottom - 12) {
+      container.scrollTo({
+        top: lTop - container.clientHeight / 2 + lineEl.offsetHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [firstActive]);
 
   if (!snippet) {
     return (
@@ -151,9 +173,7 @@ export function PythonCodePanel({
             onClick={copy}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-all hover:scale-[1.03] active:scale-95"
             style={{
-              background: copied
-                ? "oklch(0.75 0.18 162 / 18%)"
-                : "oklch(0.75 0.18 162 / 14%)",
+              background: copied ? "oklch(0.75 0.18 162 / 18%)" : "oklch(0.75 0.18 162 / 14%)",
               color: copied ? "oklch(0.85 0.18 162)" : "oklch(0.80 0.16 162)",
               border: `1px solid ${
                 copied ? "oklch(0.75 0.18 162 / 50%)" : "oklch(0.75 0.18 162 / 30%)"
@@ -169,7 +189,8 @@ export function PythonCodePanel({
 
       {/* Code body — independent vertical scroll when bodyMaxHeight is set */}
       <div
-        className="overflow-auto"
+        ref={bodyRef}
+        className="overflow-auto relative"
         style={bodyMaxHeight ? { maxHeight: bodyMaxHeight } : undefined}
       >
         <pre
@@ -184,44 +205,59 @@ export function PythonCodePanel({
           {highlighted.map(({ raw, tokens }, i) => {
             const lineNo = i + 1;
             const isActive = activeSet.has(lineNo);
+            const isFirstActive = lineNo === firstActive;
             return (
               <div
                 key={i}
-                className="flex"
+                data-line={lineNo}
+                className={`flex relative ${isActive ? "code-line-active" : ""}`}
                 style={{
                   background: isActive ? `${accentColor}22` : "transparent",
                   borderLeft: `3px solid ${isActive ? accentColor : "transparent"}`,
-                  transition: "background-color 120ms ease",
+                  boxShadow: isActive ? `inset 0 0 18px ${accentColor}1c` : "none",
+                  transition: "background-color 140ms ease, box-shadow 140ms ease",
                 }}
               >
+                {/* execution pointer on the first active line */}
                 <span
-                  className="select-none text-right pr-3 pl-2"
+                  className="select-none w-4 text-center"
+                  style={{
+                    color: accentColor,
+                    opacity: isFirstActive ? 1 : 0,
+                    transition: "opacity 120ms ease",
+                  }}
+                  aria-hidden
+                >
+                  {isFirstActive ? "▶" : ""}
+                </span>
+                <span
+                  className="select-none text-right pr-3 pl-1"
                   style={{
                     color: isActive ? accentColor : "oklch(0.35 0.03 255)",
-                    minWidth: "2.5rem",
-                    fontWeight: isActive ? 600 : 400,
+                    minWidth: "2.1rem",
+                    fontWeight: isActive ? 700 : 400,
                   }}
                 >
                   {lineNo}
                 </span>
                 <span className="flex-1 pr-4">
-                  {tokens.length === 0 ? (
-                    raw.length ? raw : "\u00a0"
-                  ) : (
-                    tokens.map((t, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          color: CPP_TOKEN_COLORS[t.kind],
-                          fontStyle: t.kind === "comment" ? "italic" : undefined,
-                          fontWeight:
-                            t.kind === "keyword" || t.kind === "preproc" ? 600 : undefined,
-                        }}
-                      >
-                        {t.text}
-                      </span>
-                    ))
-                  )}
+                  {tokens.length === 0
+                    ? raw.length
+                      ? raw
+                      : "\u00a0"
+                    : tokens.map((t, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            color: CPP_TOKEN_COLORS[t.kind],
+                            fontStyle: t.kind === "comment" ? "italic" : undefined,
+                            fontWeight:
+                              t.kind === "keyword" || t.kind === "preproc" ? 600 : undefined,
+                          }}
+                        >
+                          {t.text}
+                        </span>
+                      ))}
                 </span>
               </div>
             );
