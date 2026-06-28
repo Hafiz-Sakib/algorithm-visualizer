@@ -31,12 +31,19 @@ export function Controls({
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
       {/* Progress bar */}
-      <div className="h-[2px] w-full" style={{ background: "oklch(1 0 0 / 8%)" }}>
+      <div className="h-[2px] w-full relative" style={{ background: "oklch(1 0 0 / 8%)" }}>
         <motion.div
-          className="h-full rounded-full"
+          className="h-full rounded-full relative"
           style={{ background: "linear-gradient(90deg, oklch(0.72 0.19 255), oklch(0.75 0.18 162))", width: `${progress}%` }}
           transition={{ duration: 0.1 }}
-        />
+        >
+          {playing && progress > 0 && (
+            <span
+              className="viz-rail-dot absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full"
+              style={{ background: "oklch(0.95 0.05 162)" }}
+            />
+          )}
+        </motion.div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 p-3">
@@ -110,7 +117,7 @@ export function Controls({
 
         {/* Step counter */}
         <div className="ml-auto flex items-center gap-1.5">
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md" style={{ background: "oklch(1 0 0 / 5%)", color: "oklch(0.55 0.04 255)" }}>
+          <span key={index} className="viz-tick text-[10px] font-mono px-2 py-0.5 rounded-md" style={{ background: "oklch(1 0 0 / 5%)", color: "oklch(0.55 0.04 255)" }}>
             {index + 1} <span style={{ color: "oklch(0.40 0.04 255)" }}>/</span> {total}
           </span>
         </div>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useCallback, useMemo, useState } from "react";
 import { Controls } from "../components/viz/Controls";
 import { PythonCodePanel } from "../components/PythonCodePanel";
@@ -42,6 +42,7 @@ function SortingPage() {
   const [speed, setSpeed] = useState(80);
   const [array, setArray] = useState<number[]>(() => randomArray(30));
   const [custom, setCustom] = useState("");
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const initialItems = useMemo(
     () => array.map((v, i) => ({ id: i, value: v })),
@@ -117,6 +118,7 @@ function SortingPage() {
             const isSwap = current?.swap?.includes(i);
             const isSorted = current?.sorted?.includes(i);
             const isPivot = current?.pivot === i;
+            const isHovered = hoverIdx === i;
             const color = isSwap
               ? "var(--danger)"
               : isPivot
@@ -125,25 +127,65 @@ function SortingPage() {
               ? ALGO_COLOR[algo]
               : isSorted
               ? "var(--accent)"
+              : isHovered
+              ? "oklch(1 0 0 / 30%)"
               : "oklch(1 0 0 / 12%)";
+            const active = isCompare || isSwap || isPivot;
             return (
               <motion.div
                 key={item.id}
                 layout
+                onMouseEnter={() => setHoverIdx(i)}
+                onMouseLeave={() => setHoverIdx((cur) => (cur === i ? null : cur))}
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                className="flex-1 rounded-t"
+                className={`relative flex-1 rounded-t ${isSwap ? "viz-breathe" : ""} ${isSorted ? "viz-sparkle" : ""}`}
                 style={{
                   height: `${(item.value / max) * 100}%`,
                   background: color,
                   minWidth: "1px",
-                  boxShadow: (isCompare || isSwap || isPivot) ? `0 0 6px ${color}80` : "none",
+                  boxShadow: active
+                    ? `0 0 10px ${color}90, 0 0 2px ${color}`
+                    : isSorted
+                    ? `0 0 4px ${color}40`
+                    : "none",
+                  scale: isHovered ? 1.08 : 1,
+                  transformOrigin: "bottom",
+                  color: "transparent",
                 }}
                 title={String(item.value)}
-              />
+              >
+                {isHovered && (
+                  <motion.span
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap pointer-events-none"
+                    style={{ background: "oklch(0.10 0.02 265 / 95%)", color: "oklch(0.92 0.01 255)", border: "1px solid oklch(1 0 0 / 14%)" }}
+                  >
+                    {item.value}
+                  </motion.span>
+                )}
+              </motion.div>
             );
           })}
         </div>
       </div>
+
+      {/* Live status strip */}
+      <AnimatePresence mode="wait">
+        {(current?.compare || current?.swap || current?.pivot !== undefined) && (
+          <motion.div
+            key={`${index}-${current?.compare?.join(",")}-${current?.swap?.join(",")}`}
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0 }}
+            className="text-[11px] font-mono px-3 py-1.5 rounded-lg inline-flex items-center gap-2"
+            style={{ background: `${ALGO_COLOR[algo]}10`, border: `1px solid ${ALGO_COLOR[algo]}25`, color: ALGO_COLOR[algo] }}
+          >
+            <span className="viz-rail-dot inline-block h-1.5 w-1.5 rounded-full" style={{ background: ALGO_COLOR[algo] }} />
+            {current?.swap ? `Swapping indices ${current.swap.join(" ↔ ")}` : current?.pivot !== undefined ? `Pivot at index ${current.pivot}` : `Comparing indices ${current?.compare?.join(" vs ")}`}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3 text-[11px]" style={{ color: "oklch(0.50 0.04 255)" }}>

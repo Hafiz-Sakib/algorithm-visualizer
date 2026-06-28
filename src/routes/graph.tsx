@@ -110,7 +110,11 @@ function GraphPage() {
                   <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
                     stroke={isHL ? "oklch(0.82 0.18 85)" : "oklch(1 0 0 / 12%)"}
                     strokeWidth={isHL ? 2.5 : 1.5}
-                    style={{ filter: isHL ? "drop-shadow(0 0 4px oklch(0.82 0.18 85 / 60%))" : "none" }} />
+                    strokeDasharray={isHL ? "6 4" : undefined}
+                    style={{
+                      filter: isHL ? "drop-shadow(0 0 4px oklch(0.82 0.18 85 / 60%))" : "none",
+                      animation: isHL ? "viz-rail-glow 1s ease-in-out infinite" : undefined,
+                    }} />
                   {graph.directed && (
                     <polygon points="0,-4 8,0 0,4"
                       fill={isHL ? "oklch(0.82 0.18 85)" : "oklch(1 0 0 / 20%)"}
@@ -131,10 +135,17 @@ function GraphPage() {
               return (
                 <motion.g key={n.id} animate={{ scale: isVisiting ? 1.2 : 1 }}
                   style={{ originX: `${n.x}px`, originY: `${n.y}px` }}
-                  transition={{ type: "spring", stiffness: 400, damping: 22 }}>
-                  {isVisiting && <circle cx={n.x} cy={n.y} r={28} fill={`${accentColor}15`} />}
+                  transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                  className="viz-cell-interactive">
+                  {isVisiting && (
+                    <motion.circle
+                      cx={n.x} cy={n.y} r={28} fill={`${accentColor}15`}
+                      animate={{ r: [24, 32, 24], opacity: [0.6, 0.2, 0.6] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  )}
                   <circle cx={n.x} cy={n.y} r={20} fill={fill} stroke={ring} strokeWidth={1.5}
-                    style={{ filter: isVisiting ? `drop-shadow(0 0 8px ${accentColor}50)` : "none" }} />
+                    style={{ filter: isVisiting ? `drop-shadow(0 0 10px ${accentColor}70)` : isVisited ? `drop-shadow(0 0 4px oklch(0.75 0.18 162 / 40%))` : "none" }} />
                   <text x={n.x} y={n.y+5} textAnchor="middle" fontSize={13} fontWeight="700"
                     fontFamily="'Space Grotesk',sans-serif"
                     fill={(isVisiting || isVisited) ? "oklch(0.08 0.02 265)" : "oklch(0.80 0.01 255)"}>

@@ -181,14 +181,14 @@ function PathfindingPage() {
                     initial={false}
                     animate={{
                       backgroundColor: bg,
-                      scale: isCur ? 1.1 : 1,
+                      scale: isCur ? 1.15 : 1,
                       borderRadius: isStart || isEnd ? "4px" : "2px",
                     }}
                     transition={{ duration: 0.12 }}
                     onMouseDown={() => { setDrag(true); apply(r, c); }}
                     onMouseEnter={() => drag && apply(r, c)}
-                    className="aspect-square cursor-pointer"
-                    style={{ boxShadow: isCur ? `0 0 6px ${accentColor}80` : inPath ? "0 0 4px oklch(0.82 0.18 85 / 40%)" : "none" }}
+                    className={`aspect-square cursor-pointer ${isCur ? "viz-breathe" : ""} ${inPath ? "viz-sparkle" : ""}`}
+                    style={{ boxShadow: isCur ? `0 0 8px ${accentColor}90` : inPath ? "0 0 5px oklch(0.82 0.18 85 / 50%)" : "none" }}
                   />
                 );
               }),

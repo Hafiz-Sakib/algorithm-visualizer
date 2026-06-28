@@ -94,7 +94,21 @@ function SearchingPage() {
           )}
         </div>
         <div className="p-3 sm:p-4 overflow-x-auto">
-          <div className="flex gap-1.5 min-w-fit pb-1">
+          <div className="relative flex gap-1.5 min-w-fit pb-1">
+            {/* Range sweep bracket */}
+            {current?.range && (
+              <motion.div
+                layout
+                className="absolute -bottom-1 h-[3px] rounded-full"
+                style={{
+                  background: `linear-gradient(90deg, ${color}, ${color}80)`,
+                  boxShadow: `0 0 8px ${color}80`,
+                  left: `calc(${current.range[0]} * (2.5rem + 6px) + 1.25rem)`,
+                  width: `calc(${current.range[1] - current.range[0]} * (2.5rem + 6px) + 2.5rem)`,
+                }}
+                transition={{ type: "spring", stiffness: 280, damping: 26 }}
+              />
+            )}
             {array.map((v, i) => {
               const isCheck = current?.checking === i;
               const isFound = current?.found === i;
@@ -109,11 +123,11 @@ function SearchingPage() {
                   <motion.div
                     animate={{ scale: (isCheck||isFound||isHL) ? 1.1 : 1, y: isCheck ? -3 : 0 }}
                     transition={{ type:"spring", stiffness:400, damping:24 }}
-                    className="flex h-10 w-9 sm:h-12 sm:w-10 shrink-0 items-center justify-center rounded-lg font-mono text-xs sm:text-sm font-medium"
-                    style={{ background:bg, border:`1px solid ${borderColor}`, color:isElim?"oklch(0.40 0.04 255)":"oklch(0.90 0.01 255)", boxShadow:(isCheck||isFound||isHL)?`0 0 12px ${borderColor}50`:"none" }}>
+                    className={`flex h-10 w-9 sm:h-12 sm:w-10 shrink-0 items-center justify-center rounded-lg font-mono text-xs sm:text-sm font-medium ${isFound ? "viz-sparkle viz-breathe" : ""} ${isCheck ? "viz-pop-in" : ""}`}
+                    style={{ background:bg, border:`1px solid ${borderColor}`, color:isElim?"oklch(0.40 0.04 255)":"oklch(0.90 0.01 255)", boxShadow:(isCheck||isFound||isHL)?`0 0 14px ${borderColor}70`:"none" }}>
                     {v}
-                    {isCheck && <span className="absolute -top-4 text-[8px] font-bold" style={{ color }}>↓</span>}
-                    {isFound && <span className="absolute -top-4 text-[8px] font-bold" style={{ color:"oklch(0.75 0.18 162)" }}>✓</span>}
+                    {isCheck && <motion.span initial={{ opacity: 0, y: 2 }} animate={{ opacity: 1, y: 0 }} className="absolute -top-4 text-[8px] font-bold" style={{ color }}>↓</motion.span>}
+                    {isFound && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500 }} className="absolute -top-4 text-[8px] font-bold" style={{ color:"oklch(0.75 0.18 162)" }}>✓</motion.span>}
                   </motion.div>
                 </div>
               );

@@ -95,12 +95,12 @@ function HanoiPage() {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0 }}
                           transition={{ type: "spring", stiffness: 260, damping: 24 }}
-                          className="rounded-md flex items-center justify-center text-[10px] font-mono font-bold"
+                          className={`rounded-md flex items-center justify-center text-[10px] font-mono font-bold ${isMoving ? "viz-breathe" : ""}`}
                           style={{
                             width: w, height: 22, marginTop: 2,
                             background: color,
                             color: "oklch(0.08 0.02 265)",
-                            boxShadow: isMoving ? `0 0 16px ${color}` : `0 1px 3px oklch(0 0 0 / 30%)`,
+                            boxShadow: isMoving ? `0 0 20px ${color}, 0 4px 12px oklch(0 0 0 / 40%)` : `0 1px 3px oklch(0 0 0 / 30%)`,
                             border: isMoving ? `2px solid oklch(0.95 0.01 60)` : "1px solid oklch(0 0 0 / 20%)",
                             zIndex: isMoving ? 10 : 1,
                           }}
