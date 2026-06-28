@@ -100,10 +100,10 @@ function StringsPage() {
               return (
                 <motion.div key={i} animate={{ backgroundColor: bg, scale: isActive ? 1.1 : 1 }}
                   transition={{ duration: 0.12 }}
-                  className={`relative flex flex-col items-center gap-0.5 ${isActive ? "viz-breathe" : ""}`}>
+                  className="relative flex flex-col items-center gap-0.5">
                   <span className="text-[8px] font-mono" style={{ color: "oklch(0.38 0.04 255)" }}>{i}</span>
-                  <div className={`flex h-9 w-8 items-center justify-center rounded-lg font-mono text-sm font-semibold ${isMatch ? "viz-sparkle" : ""}`}
-                    style={{ border: `1px solid ${border}`, color: isMatch ? "oklch(0.08 0.02 265)" : "oklch(0.88 0.01 255)", boxShadow: isActive ? `0 0 10px ${accentColor}60` : "none" }}>
+                  <div className="flex h-9 w-8 items-center justify-center rounded-lg font-mono text-sm font-semibold"
+                    style={{ border: `1px solid ${border}`, color: isMatch ? "oklch(0.08 0.02 265)" : "oklch(0.88 0.01 255)", boxShadow: isActive ? `0 0 8px ${accentColor}50` : "none" }}>
                     {ch}
                   </div>
                   {isMatch && <span className="absolute -bottom-1 h-[2px] w-full rounded-full" style={{ background: "oklch(0.75 0.18 162)" }} />}

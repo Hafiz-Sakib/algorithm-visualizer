@@ -86,14 +86,13 @@ function KnightsPage() {
                       key={c}
                       animate={{ backgroundColor: bg }}
                       transition={{ duration: 0.18 }}
-                      className={`flex items-center justify-center font-mono ${isCur ? "viz-breathe" : ""}`}
+                      className="flex items-center justify-center font-mono"
                       style={{
                         width: cellPx, height: cellPx,
                         border: "1px solid oklch(1 0 0 / 5%)",
                         color: isCur ? "oklch(0.08 0.02 265)" : "oklch(0.92 0.01 255)",
                         fontSize: cellPx * 0.32,
                         fontWeight: isCur ? 700 : 500,
-                        boxShadow: isCur ? `0 0 12px ${ACCENT}80` : "none",
                       }}
                     >
                       {isCur ? "♞" : (visited ? step : "")}

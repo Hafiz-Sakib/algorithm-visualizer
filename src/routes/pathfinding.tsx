@@ -168,12 +168,14 @@ function PathfindingPage() {
 
                 let bg = "oklch(1 0 0 / 4%)";
                 if (isVisited) bg = "oklch(0.72 0.19 255 / 18%)";
-                if (isFront) bg = "oklch(0.72 0.19 255 / 35%)";
-                if (inPath) bg = "oklch(0.82 0.18 85 / 70%)";
+                if (isFront) bg = "oklch(0.72 0.19 255 / 38%)";
+                if (inPath) bg = "oklch(0.82 0.18 85 / 80%)";
                 if (isCur) bg = accentColor;
                 if (isWall) bg = "oklch(1 0 0 / 15%)";
                 if (isStart) bg = "oklch(0.75 0.18 162)";
                 if (isEnd) bg = "oklch(0.68 0.22 22)";
+
+                const reveal = isVisited || isFront || inPath;
 
                 return (
                   <motion.div
@@ -181,14 +183,28 @@ function PathfindingPage() {
                     initial={false}
                     animate={{
                       backgroundColor: bg,
-                      scale: isCur ? 1.15 : 1,
-                      borderRadius: isStart || isEnd ? "4px" : "2px",
+                      scale: isCur ? 1.18 : inPath ? 1.06 : isWall ? 0.9 : reveal ? 1 : 1,
+                      borderRadius: isStart || isEnd ? "5px" : inPath ? "3px" : "2px",
                     }}
-                    transition={{ duration: 0.12 }}
+                    transition={
+                      isCur
+                        ? { type: "spring", stiffness: 500, damping: 18 }
+                        : inPath
+                          ? { type: "spring", stiffness: 420, damping: 20 }
+                          : { duration: 0.18 }
+                    }
                     onMouseDown={() => { setDrag(true); apply(r, c); }}
                     onMouseEnter={() => drag && apply(r, c)}
-                    className={`aspect-square cursor-pointer ${isCur ? "viz-breathe" : ""} ${inPath ? "viz-sparkle" : ""}`}
-                    style={{ boxShadow: isCur ? `0 0 8px ${accentColor}90` : inPath ? "0 0 5px oklch(0.82 0.18 85 / 50%)" : "none" }}
+                    className="aspect-square cursor-pointer"
+                    style={{
+                      boxShadow: isCur
+                        ? `0 0 10px ${accentColor}`
+                        : inPath
+                          ? "0 0 8px oklch(0.82 0.18 85 / 60%)"
+                          : isFront
+                            ? "0 0 5px oklch(0.72 0.19 255 / 45%)"
+                            : "none",
+                    }}
                   />
                 );
               }),

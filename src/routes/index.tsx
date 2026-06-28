@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, useScroll, useTransform, AnimatePresence, type Variants } from "framer-motion";
 import { useRef, useEffect, useState, useMemo } from "react";
 import * as THREE from "three";
-import { Hero2DScene } from "../components/Hero2DScene";
+import { HeroViz2D } from "../components/HeroViz2D";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,6 +23,8 @@ export const Route = createFileRoute("/")({
   }),
   component: Index,
 });
+
+// ─── Hero (Quick Sort + Binary Search) is now a 2D component: HeroViz2D ──────
 
 // ─── A* Search: Three.js grid visualization ──────────────────────────────────
 const GRID_COLS = 14;
@@ -2458,7 +2460,7 @@ function Index() {
           </Link>
         </motion.div>
 
-        {/* 2D canvas hero — toggleable Quick Sort / Binary Search */}
+        {/* 2D hero — toggleable Quick Sort / Binary Search */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -2478,7 +2480,27 @@ function Index() {
             className="absolute bottom-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 pointer-events-none"
             style={{ background: "oklch(0.75 0.18 162)", transform: "translate(30%, 30%)" }}
           />
-          <Hero2DScene />
+          <HeroViz2D />
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-4 pointer-events-none">
+            {[
+              { dot: "#ffd34d", label: "Compare / Probe" },
+              { dot: "#ff6b5e", label: "Swap" },
+              { dot: "#3ddc97", label: "Sorted / Found" },
+              { dot: "#5a7cff", label: "Search Range" },
+            ].map(({ dot, label }) => (
+              <span
+                key={label}
+                className="flex items-center gap-1 text-[10px] font-mono"
+                style={{ color: "oklch(0.50 0.04 255)" }}
+              >
+                <span
+                  className="inline-block w-1.5 h-1.5 rounded-full"
+                  style={{ background: dot }}
+                />
+                {label}
+              </span>
+            ))}
+          </div>
         </motion.div>
       </motion.section>
 

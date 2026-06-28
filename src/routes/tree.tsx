@@ -127,14 +127,18 @@ function TreePage() {
                   animate={{ scale: isVisiting ? 1.2 : 1 }}
                   style={{ originX: `${xOf(n)}px`, originY: `${yOf(n)}px` }}
                   transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                  className="viz-cell-interactive"
                 >
                   {isVisiting && (
-                    <motion.circle
-                      cx={xOf(n)} cy={yOf(n)} r={26} fill={`${accentColor}20`}
-                      animate={{ r: [22, 30, 22], opacity: [0.6, 0.2, 0.6] }}
-                      transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-                    />
+                    <>
+                      <circle cx={xOf(n)} cy={yOf(n)} r={26} fill={`${accentColor}20`} />
+                      <motion.circle
+                        cx={xOf(n)} cy={yOf(n)}
+                        fill="none" stroke={accentColor} strokeWidth={1.5}
+                        initial={{ r: 18, opacity: 0.6 }}
+                        animate={{ r: 36, opacity: 0 }}
+                        transition={{ duration: 1.1, repeat: Infinity, ease: "easeOut" }}
+                      />
+                    </>
                   )}
                   <circle
                     cx={xOf(n)}
@@ -143,7 +147,7 @@ function TreePage() {
                     fill={fill}
                     stroke={ringColor}
                     strokeWidth={1.5}
-                    style={{ filter: isVisiting ? `drop-shadow(0 0 10px ${accentColor}70)` : isVisited ? `drop-shadow(0 0 4px oklch(0.75 0.18 162 / 35%))` : "none" }}
+                    style={{ filter: isVisiting ? `drop-shadow(0 0 8px ${accentColor}60)` : "none" }}
                   />
                   <text
                     x={xOf(n)}

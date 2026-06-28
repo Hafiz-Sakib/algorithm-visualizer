@@ -87,7 +87,7 @@ function DPPage() {
           <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "oklch(0.40 0.04 255)" }}>dp table</span>
           {current?.result !== undefined && (
             <motion.span initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="viz-sparkle text-xs font-bold px-3 py-1 rounded-full"
+              className="text-xs font-bold px-3 py-1 rounded-full"
               style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}35` }}>
               Result: {current.result}
             </motion.span>
@@ -112,8 +112,8 @@ function DPPage() {
                 return (
                   <motion.div key={c} animate={{ backgroundColor: bg, scale: isHL ? 1.15 : 1 }}
                     transition={{ duration: 0.15 }}
-                    className={`flex items-center justify-center rounded font-mono text-[11px] font-medium ${isHL ? "viz-breathe" : ""}`}
-                    style={{ minWidth: 36, height: 36, color: textColor, border: `1px solid ${isHL ? accentColor : isDep ? `${accentColor}40` : "oklch(1 0 0 / 8%)"}`, boxShadow: isHL ? `0 0 10px ${accentColor}60` : "none" }}>
+                    className="flex items-center justify-center rounded font-mono text-[11px] font-medium"
+                    style={{ minWidth: 36, height: 36, color: textColor, border: `1px solid ${isHL ? accentColor : isDep ? `${accentColor}40` : "oklch(1 0 0 / 8%)"}`, boxShadow: isHL ? `0 0 8px ${accentColor}50` : "none" }}>
                     {val === -1 ? "∞" : val}
                   </motion.div>
                 );

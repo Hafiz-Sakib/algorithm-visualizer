@@ -92,15 +92,14 @@ function NQueensPage() {
                       key={c}
                       animate={{ backgroundColor: bg }}
                       transition={{ duration: 0.15 }}
-                      className={`flex items-center justify-center ${isTrying || isBack ? "viz-breathe" : ""}`}
-                      style={{ width: cellPx, height: cellPx, border: "1px solid oklch(1 0 0 / 5%)", boxShadow: isTrying ? `0 0 10px ${ACCENT}70` : isBack ? "0 0 10px oklch(0.65 0.22 22 / 70%)" : "none" }}
+                      className="flex items-center justify-center"
+                      style={{ width: cellPx, height: cellPx, border: "1px solid oklch(1 0 0 / 5%)" }}
                     >
                       {hasQueen && (
                         <motion.span
                           initial={{ scale: 0, rotate: -90 }}
                           animate={{ scale: 1, rotate: 0 }}
                           transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                          className="viz-pop-in"
                           style={{ fontSize: cellPx * 0.62, color: "oklch(0.95 0.01 60)", textShadow: `0 0 8px ${ACCENT}80` }}
                         >
                           ♛
