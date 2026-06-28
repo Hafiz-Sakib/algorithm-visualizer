@@ -91,9 +91,48 @@ export function* ternarySearch(arr: number[], target: number): Generator<SearchS
   yield { array: arr, eliminated: [...eliminated] };
 }
 
+export function* fibonacciSearch(arr: number[], target: number): Generator<SearchStep> {
+  const n = arr.length;
+  const eliminated: number[] = [];
+  let fbK2 = 0; // (k-2)'th Fibonacci
+  let fbK1 = 1; // (k-1)'th Fibonacci
+  let fbK = fbK2 + fbK1; // k'th Fibonacci
+  while (fbK < n) {
+    fbK2 = fbK1;
+    fbK1 = fbK;
+    fbK = fbK2 + fbK1;
+  }
+  let offset = -1;
+  while (fbK > 1) {
+    const i = Math.min(offset + fbK2, n - 1);
+    yield { array: arr, checking: i, range: [offset + 1, n - 1], eliminated: [...eliminated] };
+    if (arr[i] < target) {
+      for (let k = offset + 1; k <= i; k++) eliminated.push(k);
+      fbK = fbK1;
+      fbK1 = fbK2;
+      fbK2 = fbK - fbK1;
+      offset = i;
+    } else if (arr[i] > target) {
+      for (let k = i; k < n; k++) eliminated.push(k);
+      fbK = fbK2;
+      fbK1 = fbK1 - fbK2;
+      fbK2 = fbK - fbK1;
+    } else {
+      yield { array: arr, found: i, eliminated: [...eliminated] };
+      return;
+    }
+  }
+  if (fbK1 && offset + 1 < n && arr[offset + 1] === target) {
+    yield { array: arr, found: offset + 1, eliminated: [...eliminated] };
+    return;
+  }
+  yield { array: arr, eliminated: [...eliminated] };
+}
+
 export const SEARCHERS = {
   Linear: linearSearch, Binary: binarySearch, Jump: jumpSearch,
   Interpolation: interpolationSearch, Exponential: exponentialSearch, Ternary: ternarySearch,
+  Fibonacci: fibonacciSearch,
 } as const;
 
 export type SearchName = keyof typeof SEARCHERS;

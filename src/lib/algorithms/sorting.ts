@@ -191,11 +191,54 @@ export function* cycleSort(a: number[]): SortGen {
   yield { array: [...arr], sorted: arr.map((_, i) => i) };
 }
 
+export function* pancakeSort(a: number[]): SortGen {
+  const arr = [...a]; const n = arr.length; const sorted: number[] = [];
+  const flip = function* (k: number): SortGen {
+    let i = 0, j = k;
+    while (i < j) {
+      yield { array: [...arr], swap: [i, j], sorted: [...sorted] };
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      i++; j--;
+    }
+  };
+  for (let size = n; size > 1; size--) {
+    let maxIdx = 0;
+    for (let i = 1; i < size; i++) {
+      yield { array: [...arr], compare: [maxIdx, i], sorted: [...sorted] };
+      if (arr[i] > arr[maxIdx]) maxIdx = i;
+    }
+    if (maxIdx !== size - 1) {
+      if (maxIdx !== 0) yield* flip(maxIdx);        // bring max to front
+      yield* flip(size - 1);                         // flip it to its place
+    }
+    sorted.unshift(size - 1);
+  }
+  yield { array: [...arr], sorted: arr.map((_, i) => i) };
+}
+
+export function* oddEvenSort(a: number[]): SortGen {
+  const arr = [...a]; const n = arr.length;
+  let swapped = true;
+  while (swapped) {
+    swapped = false;
+    for (let i = 1; i < n - 1; i += 2) {            // odd phase
+      yield { array: [...arr], compare: [i, i + 1], sorted: [] };
+      if (arr[i] > arr[i + 1]) { [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]]; swapped = true; yield { array: [...arr], swap: [i, i + 1], sorted: [] }; }
+    }
+    for (let i = 0; i < n - 1; i += 2) {            // even phase
+      yield { array: [...arr], compare: [i, i + 1], sorted: [] };
+      if (arr[i] > arr[i + 1]) { [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]]; swapped = true; yield { array: [...arr], swap: [i, i + 1], sorted: [] }; }
+    }
+  }
+  yield { array: [...arr], sorted: arr.map((_, i) => i) };
+}
+
 export const SORTERS = {
   Bubble: bubbleSort, Selection: selectionSort, Insertion: insertionSort,
   Merge: mergeSort, Quick: quickSort, Heap: heapSort, Shell: shellSort,
   Counting: countingSort, Radix: radixSort, Cocktail: cocktailSort,
   Gnome: gnomeSort, Comb: combSort, Cycle: cycleSort,
+  Pancake: pancakeSort, "Odd-Even": oddEvenSort,
 } as const;
 
 export type SortName = keyof typeof SORTERS;

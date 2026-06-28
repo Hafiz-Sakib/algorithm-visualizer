@@ -107,11 +107,42 @@ export function* boyerMoore(text: string, pattern: string): Generator<StringStep
   yield { text, pattern, matches, message: matches.length ? `BM: matches at [${matches.join(",")}]` : "No matches" };
 }
 
+export function* longestPalindrome(text: string): Generator<StringStep> {
+  const n = text.length;
+  let bestL = 0, bestR = 0;
+  const expand = function* (l: number, r: number): Generator<StringStep> {
+    while (l >= 0 && r < n && text[l] === text[r]) {
+      yield {
+        text,
+        i: l,
+        j: r,
+        matches: [],
+        highlight: Array.from({ length: r - l + 1 }, (_, k) => l + k),
+        message: `Palindrome '${text.slice(l, r + 1)}' (len ${r - l + 1})`,
+      };
+      if (r - l > bestR - bestL) { bestL = l; bestR = r; }
+      l--; r++;
+    }
+  };
+  for (let c = 0; c < n; c++) {
+    yield { text, i: c, j: c, matches: [], highlight: [c], message: `Center at index ${c}` };
+    yield* expand(c, c);       // odd-length center
+    yield* expand(c, c + 1);   // even-length center
+  }
+  yield {
+    text,
+    matches: [bestL],
+    highlight: Array.from({ length: bestR - bestL + 1 }, (_, k) => bestL + k),
+    message: `Longest: '${text.slice(bestL, bestR + 1)}' at index ${bestL}`,
+  };
+}
+
 export const STRING_ALGOS = {
   "Naive": (t: string, p: string) => naiveSearch(t, p),
   "KMP": (t: string, p: string) => kmpSearch(t, p),
   "Rabin-Karp": (t: string, p: string) => rabinKarp(t, p),
   "Z-Algorithm": (t: string, p: string) => zAlgorithm(t, p),
   "Boyer-Moore": (t: string, p: string) => boyerMoore(t, p),
+  "Longest Palindrome": (t: string, _p: string) => longestPalindrome(t),
 } as const;
 export type StringAlgoName = keyof typeof STRING_ALGOS;

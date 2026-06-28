@@ -80,6 +80,16 @@ const SORTING: Record<string, StepFn> = {
     if (s?.compare) return [9, 10];                 // count smaller elements
     return [];
   },
+  Pancake: (s) => {
+    if (s?.swap) return [7];                         // flip swaps inside flip()
+    if (s?.compare) return [15, 16];                // find max in prefix
+    return [];
+  },
+  "Odd-Even": (s) => {
+    if (s?.swap) return [10, 13];                    // swap on odd/even phase
+    if (s?.compare) return [10, 13];                // compare adjacent
+    return [];
+  },
 };
 
 // ────────────────────────────── SEARCHING (C++ STL) ──────────────────────────────
@@ -112,6 +122,11 @@ const SEARCHING: Record<string, StepFn> = {
   Interpolation: (s) => {
     if (has(s, "found")) return [9];
     if (has(s, "checking")) return [9];
+    return [];
+  },
+  Fibonacci: (s) => {
+    if (has(s, "found")) return [16];               // return i
+    if (has(s, "checking")) return [13, 14, 15];    // probe + narrow range
     return [];
   },
 };
@@ -222,6 +237,13 @@ const DP: Record<string, StepFn> = {
     if (has(s, "table")) return [7, 8, 9];
     return [];
   },
+  "Subset Sum": (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Initialize")) return [6, 7];
+    if (has(s, "result")) return [16];
+    if (has(s, "table")) return [12, 13, 14];
+    return [];
+  },
 };
 
 // ────────────────────────────── STRINGS ──────────────────────────────
@@ -256,6 +278,20 @@ const STRINGS: Record<string, StepFn> = {
     if (msg.includes("match at")) return [16, 17];
     if (msg.startsWith("Z[")) return [10, 11];
     if (has(s, "table")) return [9];
+    return [];
+  },
+  "Boyer-Moore": (s) => {
+    const msg = m(s);
+    if (msg.toLowerCase().includes("match")) return [12];
+    if (msg.toLowerCase().includes("mismatch")) return [13, 14];
+    if (has(s, "i")) return [11, 12];
+    return [];
+  },
+  "Longest Palindrome": (s) => {
+    const msg = m(s);
+    if (msg.startsWith("Longest")) return [16];        // return substr
+    if (msg.startsWith("Palindrome")) return [9, 10];  // expand while equal
+    if (msg.startsWith("Center")) return [13, 14];     // try each center
     return [];
   },
 };
@@ -295,6 +331,7 @@ const SECTIONS: Record<PySection, Record<string, StepFn>> = {
   pathfinding: PATHFINDING,
   dp: DP,
   backtracking: BACKTRACKING,
+  library: {}, // static catalogue page — no live step detection
 };
 
 export function inferLines(

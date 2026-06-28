@@ -204,6 +204,56 @@ export function* longestIncreasingSubsequence(arr: number[]): Generator<DPStep> 
   };
 }
 
+export function* subsetSum(nums: number[], target: number): Generator<DPStep> {
+  const n = nums.length;
+  // dp[i][s] = 1 if some subset of first i items sums to s, else 0.
+  const dp = Array.from({ length: n + 1 }, () => new Array(target + 1).fill(0));
+  for (let i = 0; i <= n; i++) dp[i][0] = 1; // empty subset sums to 0
+  yield {
+    table: dp.map((r) => [...r]),
+    message: "Initialize: empty subset reaches sum 0 (column 0 = 1)",
+    highlightCell: [0, 0],
+  };
+  for (let i = 1; i <= n; i++) {
+    for (let s = 1; s <= target; s++) {
+      const without = dp[i - 1][s];
+      const withItem = s - nums[i - 1] >= 0 ? dp[i - 1][s - nums[i - 1]] : 0;
+      dp[i][s] = without || withItem ? 1 : 0;
+      yield {
+        table: dp.map((r) => [...r]),
+        highlightCell: [i, s],
+        highlightCells:
+          s - nums[i - 1] >= 0
+            ? [[i - 1, s], [i - 1, s - nums[i - 1]]]
+            : [[i - 1, s]],
+        message: `Item ${nums[i - 1]}, sum ${s}: ${dp[i][s] ? "reachable" : "not reachable"}`,
+      };
+    }
+  }
+  // Traceback one valid subset if the target is reachable.
+  const traceback: [number, number][] = [];
+  const chosenItems: number[] = [];
+  if (dp[n][target]) {
+    let s = target;
+    for (let i = n; i > 0 && s > 0; i--) {
+      if (dp[i - 1][s] === 0 && s - nums[i - 1] >= 0 && dp[i - 1][s - nums[i - 1]]) {
+        traceback.push([i, s]);
+        chosenItems.push(i - 1);
+        s -= nums[i - 1];
+      }
+    }
+  }
+  yield {
+    table: dp.map((r) => [...r]),
+    result: dp[n][target] ? "Yes" : "No",
+    traceback,
+    chosenItems,
+    message: dp[n][target]
+      ? `Target ${target} reachable with items {${chosenItems.map((i) => nums[i]).join(", ")}}`
+      : `Target ${target} is not reachable`,
+  };
+}
+
 export const DP_ALGOS = {
   Fibonacci: () => fibonacciDP(10),
   LCS: () => longestCommonSubsequence("ABCBDAB", "BDCAB"),
@@ -211,5 +261,6 @@ export const DP_ALGOS = {
   "Edit Distance": () => editDistance("SUNDAY", "SATURDAY"),
   "Coin Change": () => coinChange([1, 5, 10, 25], 41),
   LIS: () => longestIncreasingSubsequence([10, 9, 2, 5, 3, 7, 101, 18]),
+  "Subset Sum": () => subsetSum([3, 4, 5, 2], 9),
 } as const;
 export type DPAlgoName = keyof typeof DP_ALGOS;

@@ -19,6 +19,7 @@ const ALGO_COLOR: Record<DPAlgoName, string> = {
   "Edit Distance": "oklch(0.68 0.22 22)",
   "Coin Change": "oklch(0.75 0.18 310)",
   "LIS": "oklch(0.72 0.22 180)",
+  "Subset Sum": "oklch(0.70 0.20 300)",
 };
 
 const DESCRIPTIONS: Record<DPAlgoName, string> = {
@@ -28,6 +29,7 @@ const DESCRIPTIONS: Record<DPAlgoName, string> = {
   "Edit Distance": '"SUNDAY" → "SATURDAY"',
   "Coin Change": "Coins [1,5,10,25], Amount=41",
   "LIS": "[10,9,2,5,3,7,101,18]",
+  "Subset Sum": "Items [3,4,5,2], Target=9",
 };
 
 function DPPage() {

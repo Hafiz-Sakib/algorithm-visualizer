@@ -292,6 +292,51 @@ void cycleSort(vector<int>& a) {
 }
 `),
     },
+    Pancake: {
+      time: "O(n²)", space: "O(1)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Sort by repeatedly flipping prefixes (like flipping pancakes).
+void flip(vector<int>& a, int k) {
+    int i = 0;
+    while (i < k) { swap(a[i], a[k]); i++; k--; }
+}
+void pancakeSort(vector<int>& a) {
+    int n = a.size();
+    for (int size = n; size > 1; --size) {
+        int mx = 0;
+        for (int i = 1; i < size; ++i)
+            if (a[i] > a[mx]) mx = i;
+        if (mx != size - 1) {
+            if (mx != 0) flip(a, mx);
+            flip(a, size - 1);
+        }
+    }
+}
+`),
+    },
+    "Odd-Even": {
+      time: "O(n²)", space: "O(1)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Brick sort: alternate compare-swaps on odd then even index pairs.
+void oddEvenSort(vector<int>& a) {
+    int n = a.size();
+    bool sorted = false;
+    while (!sorted) {
+        sorted = true;
+        for (int i = 1; i < n - 1; i += 2)
+            if (a[i] > a[i + 1]) { swap(a[i], a[i + 1]); sorted = false; }
+        for (int i = 0; i < n - 1; i += 2)
+            if (a[i] > a[i + 1]) { swap(a[i], a[i + 1]); sorted = false; }
+    }
+}
+`),
+    },
   },
 
   // ────────────────────────────── SEARCHING ──────────────────────────────
@@ -406,6 +451,29 @@ int interpolationSearch(const vector<int>& a, int target) {
         if (a[pos] <  target) lo = pos + 1;
         else                  hi = pos - 1;
     }
+    return -1;
+}
+`),
+    },
+    Fibonacci: {
+      time: "O(log n)", space: "O(1)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Narrow the range using Fibonacci numbers instead of halving.
+int fibonacciSearch(const vector<int>& a, int target) {
+    int n = a.size();
+    int fk2 = 0, fk1 = 1, fk = fk2 + fk1;
+    while (fk < n) { fk2 = fk1; fk1 = fk; fk = fk2 + fk1; }
+    int offset = -1;
+    while (fk > 1) {
+        int i = min(offset + fk2, n - 1);
+        if (a[i] < target) { fk = fk1; fk1 = fk2; fk2 = fk - fk1; offset = i; }
+        else if (a[i] > target) { fk = fk2; fk1 = fk1 - fk2; fk2 = fk - fk1; }
+        else return i;
+    }
+    if (fk1 && offset + 1 < n && a[offset + 1] == target) return offset + 1;
     return -1;
 }
 `),
@@ -1175,6 +1243,29 @@ int boyerMoore(const string& text, const string& pat) {
         s += max(1, j - bad[(unsigned char)text[s + j]]);
     }
     return -1;
+}
+`),
+    },
+    "Longest Palindrome": {
+      time: "O(n²)", space: "O(1)",
+      code: s(`
+#include <bits/stdc++.h>
+using namespace std;
+
+// Expand around every center to find the longest palindromic substring.
+string longestPalindrome(const string& s) {
+    int n = s.size(), bestL = 0, bestR = 0;
+    auto expand = [&](int l, int r) {
+        while (l >= 0 && r < n && s[l] == s[r]) {
+            if (r - l > bestR - bestL) { bestL = l; bestR = r; }
+            --l; ++r;
+        }
+    };
+    for (int c = 0; c < n; ++c) {
+        expand(c, c);      // odd-length center
+        expand(c, c + 1);  // even-length center
+    }
+    return s.substr(bestL, bestR - bestL + 1);
 }
 `),
     },

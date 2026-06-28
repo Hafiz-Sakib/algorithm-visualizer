@@ -34,6 +34,8 @@ const ALGO_COLOR: Record<SortName, string> = {
   Gnome: "oklch(0.75 0.18 200)",
   Comb: "oklch(0.77 0.19 320)",
   Cycle: "oklch(0.74 0.20 100)",
+  Pancake: "oklch(0.70 0.20 30)",
+  "Odd-Even": "oklch(0.72 0.19 220)",
 };
 
 function SortingPage() {

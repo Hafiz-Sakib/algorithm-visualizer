@@ -18,6 +18,7 @@ const ALGO_COLOR: Record<StringAlgoName, string> = {
   "Rabin-Karp": "oklch(0.82 0.18 85)",
   "Z-Algorithm": "oklch(0.68 0.22 22)",
   "Boyer-Moore": "oklch(0.75 0.18 310)",
+  "Longest Palindrome": "oklch(0.72 0.20 30)",
 };
 
 const PRESETS = [

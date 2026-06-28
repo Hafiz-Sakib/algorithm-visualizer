@@ -22,9 +22,10 @@ const ALGO_COLOR: Record<SearchName, string> = {
   Interpolation: "oklch(0.68 0.22 22)",
   Exponential: "oklch(0.75 0.18 310)",
   Ternary: "oklch(0.72 0.22 180)",
+  Fibonacci: "oklch(0.70 0.20 300)",
 };
 
-const NEEDS_SORT = new Set(["Binary", "Jump", "Interpolation", "Exponential", "Ternary"]);
+const NEEDS_SORT = new Set(["Binary", "Jump", "Interpolation", "Exponential", "Ternary", "Fibonacci"]);
 
 function SearchingPage() {
   const [algo, setAlgo] = useState<SearchName>("Binary");
