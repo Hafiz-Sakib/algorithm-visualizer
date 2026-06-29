@@ -19,6 +19,7 @@ import { Route as LibraryRouteImport } from './routes/library'
 import { Route as KnightsRouteImport } from './routes/knights'
 import { Route as HanoiRouteImport } from './routes/hanoi'
 import { Route as GraphRouteImport } from './routes/graph'
+import { Route as GametheoryRouteImport } from './routes/gametheory'
 import { Route as DpRouteImport } from './routes/dp'
 import { Route as DeveloperRouteImport } from './routes/developer'
 import { Route as IndexRouteImport } from './routes/index'
@@ -73,6 +74,11 @@ const GraphRoute = GraphRouteImport.update({
   path: '/graph',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GametheoryRoute = GametheoryRouteImport.update({
+  id: '/gametheory',
+  path: '/gametheory',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DpRoute = DpRouteImport.update({
   id: '/dp',
   path: '/dp',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
+  '/gametheory': typeof GametheoryRoute
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
   '/knights': typeof KnightsRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
+  '/gametheory': typeof GametheoryRoute
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
   '/knights': typeof KnightsRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
+  '/gametheory': typeof GametheoryRoute
   '/graph': typeof GraphRoute
   '/hanoi': typeof HanoiRoute
   '/knights': typeof KnightsRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/'
     | '/developer'
     | '/dp'
+    | '/gametheory'
     | '/graph'
     | '/hanoi'
     | '/knights'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/'
     | '/developer'
     | '/dp'
+    | '/gametheory'
     | '/graph'
     | '/hanoi'
     | '/knights'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/'
     | '/developer'
     | '/dp'
+    | '/gametheory'
     | '/graph'
     | '/hanoi'
     | '/knights'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DeveloperRoute: typeof DeveloperRoute
   DpRoute: typeof DpRoute
+  GametheoryRoute: typeof GametheoryRoute
   GraphRoute: typeof GraphRoute
   HanoiRoute: typeof HanoiRoute
   KnightsRoute: typeof KnightsRoute
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GraphRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gametheory': {
+      id: '/gametheory'
+      path: '/gametheory'
+      fullPath: '/gametheory'
+      preLoaderRoute: typeof GametheoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dp': {
       id: '/dp'
       path: '/dp'
@@ -299,6 +319,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DeveloperRoute: DeveloperRoute,
   DpRoute: DpRoute,
+  GametheoryRoute: GametheoryRoute,
   GraphRoute: GraphRoute,
   HanoiRoute: HanoiRoute,
   KnightsRoute: KnightsRoute,

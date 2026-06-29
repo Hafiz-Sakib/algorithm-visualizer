@@ -91,6 +91,18 @@ const groups: { title: string; items: LinkItem[] }[] = [
     ],
   },
   {
+    title: "Game Theory",
+    items: [
+      {
+        to: "/gametheory",
+        label: "Game Theory",
+        icon: "♟",
+        color: "oklch(0.72 0.19 255)",
+        desc: "Nash, minimax, dilemma & more",
+      },
+    ],
+  },
+  {
     title: "More",
     items: [
       {
@@ -184,6 +196,7 @@ export function Nav() {
               { to: "/sorting", label: "Sorting" },
               { to: "/searching", label: "Searching" },
               { to: "/pathfinding", label: "Pathfinding" },
+              { to: "/gametheory", label: "Game Theory" },
               { to: "/library", label: "Library" },
             ] as const
           ).map((l) => {
