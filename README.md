@@ -60,6 +60,8 @@ The homepage hero animates Quick Sort and Binary Search in crisp 2D (bars that r
 
 ## 🆕 What's New
 
+- **🆕 Game Theory section** — a brand-new `/gametheory` page with 6 animated strategy algorithms (Nash Equilibrium, Minimax, Iterated Prisoner's Dilemma, Fictitious Play, Tit-for-Tat, El Farol Bar), each paired with synced Python code, a step-by-step explanation, and time/space complexity.
+- **More homepage demos** — added an interactive Prisoner's Dilemma payoff matrix, a self-running strategy tournament, a live Binary Search hunt, and a Dijkstra wavefront animation.
 - **2D hero** — Quick Sort and Binary Search moved from WebGL to crisp 2D; sort bars now physically reorder, with value labels on top and a scrubbable timeline. A\* stays 3D.
 - **Executing-line highlight** — code panel tints the running line in the algorithm's accent color (`color-mix`), with a ▶ pointer and auto-scroll.
 - **Redesigned navigation** — compact bar + "Explore all" mega-menu grouped by category (no more long link row).
@@ -261,6 +263,21 @@ Three-peg animated Hanoi solver. Discs rendered as colored bars, physically move
 
 ---
 
+#### ♟ Game Theory — `/gametheory`
+
+A dedicated section for strategic decision-making algorithms. Pick an algorithm from the header, set the animation speed, and step through it with the shared player controls (Space = play/pause, ← / → = step, R = reset). The visualization sits on top; an **Explanation / Python code** panel sits directly below it, showing the core idea, a numbered "how it works", a real-life example, the algorithm's time/space complexity, and a clean Python implementation.
+
+| Algorithm | What it shows |
+| --- | --- |
+| **Nash Equilibrium** | Scans a 2×2 payoff matrix (Prisoner's Dilemma), marks each player's best responses, and flags mutual best-response cells as Nash equilibria. |
+| **Minimax** | Backs values up a zero-sum game tree, alternating MAX and MIN layers; the visited node glows as the optimal value propagates to the root. |
+| **Iterated Dilemma** | A round-robin tournament between classic strategies (Tit-for-Tat, Always Cooperate/Defect, Grudger, Random) with animated cumulative score bars. |
+| **Fictitious Play** | Two players repeatedly best-respond to the empirical frequency of each other's moves; convergence is drawn as two frequency curves. |
+| **Tit-for-Tat** | Replays a single match — cooperate first, then mirror the opponent — with move tiles dropping in and a running score. |
+| **El Farol Bar** | A bounded-rationality congestion game: ~60 agents predict attendance and decide whether to go out; attendance self-organizes around a comfort threshold. |
+
+---
+
 ### Algorithm Library — 74 Entries — `/library`
 
 A searchable reference of 74 classic algorithms, each with:
@@ -353,6 +370,7 @@ algorithm-visualizer-main/
 │   │   ├── strings.tsx               # String matching visualizer
 │   │   ├── nqueens.tsx               # N-Queens backtracking visualizer
 │   │   ├── knights.tsx               # Knight's Tour visualizer
+│   │   ├── gametheory.tsx            # Game theory visualizer (6 algorithms)
 │   │   ├── hanoi.tsx                 # Tower of Hanoi visualizer
 │   │   ├── library.tsx               # 74-algorithm searchable reference library
 │   │   ├── developer.tsx             # Developer / about page
