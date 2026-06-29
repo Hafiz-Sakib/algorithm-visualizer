@@ -79,7 +79,6 @@ function useSteps<T>(steps: T[], speed: number) {
   }, [playing, speed, steps.length]);
 
   const onPlay = useCallback(() => {
-    // if at the end, restart from 0 so Play always does something
     setIndex((i) => (i >= steps.length - 1 ? 0 : i));
     setPlaying(true);
   }, [steps.length]);
@@ -863,7 +862,7 @@ def el_farol(agents=100, weeks=100, capacity=0.6):
 };
 
 /* ------------------------------------------------------------------ */
-/* Code + explanation panel (mimics the site's PythonCodePanel look)   */
+/* Code + explanation panel (full width, sits BELOW the visualization) */
 /* ------------------------------------------------------------------ */
 
 function InfoPanel({ algo, accent }: { algo: Algo; accent: string }) {
@@ -873,7 +872,6 @@ function InfoPanel({ algo, accent }: { algo: Algo; accent: string }) {
 
   return (
     <div className="rounded-2xl overflow-hidden" style={panel}>
-      {/* tab header */}
       <div className="flex items-center gap-1 px-3 pt-3">
         {(["explain", "code"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
@@ -893,8 +891,13 @@ function InfoPanel({ algo, accent }: { algo: Algo; accent: string }) {
 
       <div className="p-4">
         {tab === "explain" ? (
-          <div className="space-y-3">
-            <p className="text-sm" style={{ color: "oklch(0.82 0.02 255)" }}>{ex.idea}</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <p className="text-sm" style={{ color: "oklch(0.82 0.02 255)" }}>{ex.idea}</p>
+              <div className="rounded-xl px-3 py-2.5 text-sm" style={{ background: `${accent}10`, border: `1px solid ${accent}26`, color: "oklch(0.78 0.03 255)" }}>
+                <span className="font-semibold" style={{ color: accent }}>Real-life: </span>{ex.real}
+              </div>
+            </div>
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: "oklch(0.5 0.04 255)" }}>How it works</div>
               <ol className="space-y-1.5">
@@ -905,9 +908,6 @@ function InfoPanel({ algo, accent }: { algo: Algo; accent: string }) {
                   </li>
                 ))}
               </ol>
-            </div>
-            <div className="rounded-xl px-3 py-2.5 text-sm" style={{ background: `${accent}10`, border: `1px solid ${accent}26`, color: "oklch(0.78 0.03 255)" }}>
-              <span className="font-semibold" style={{ color: accent }}>Real-life: </span>{ex.real}
             </div>
           </div>
         ) : (
@@ -922,7 +922,7 @@ function InfoPanel({ algo, accent }: { algo: Algo; accent: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Page                                                                */
+/* Page — STACKED (up-down) layout                                     */
 /* ------------------------------------------------------------------ */
 
 const ALGOS: Algo[] = ["Nash Equilibrium", "Minimax", "Iterated Dilemma", "Fictitious Play", "Tit-for-Tat", "El Farol Bar"];
@@ -934,7 +934,6 @@ function GameTheoryPage() {
 
   return (
     <div className="space-y-4 py-2">
-      {/* Header */}
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -964,20 +963,18 @@ function GameTheoryPage() {
         <input type="range" min={1} max={100} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-40" />
       </div>
 
-      {/* viz + info side by side on large screens */}
-      <div className="grid gap-4 lg:grid-cols-2 items-start">
-        <div key={algo} className="min-w-0">
-          {algo === "Nash Equilibrium" && <NashViz speed={speed} accent={accent} />}
-          {algo === "Minimax" && <MinimaxViz speed={speed} accent={accent} />}
-          {algo === "Iterated Dilemma" && <IpdViz speed={speed} accent={accent} />}
-          {algo === "Fictitious Play" && <FpViz speed={speed} accent={accent} />}
-          {algo === "Tit-for-Tat" && <TftViz speed={speed} accent={accent} />}
-          {algo === "El Farol Bar" && <ElFarolViz speed={speed} accent={accent} />}
-        </div>
-        <aside className="min-w-0 lg:sticky lg:top-20">
-          <InfoPanel algo={algo} accent={accent} />
-        </aside>
+      {/* Visualization on TOP (full width) */}
+      <div key={algo}>
+        {algo === "Nash Equilibrium" && <NashViz speed={speed} accent={accent} />}
+        {algo === "Minimax" && <MinimaxViz speed={speed} accent={accent} />}
+        {algo === "Iterated Dilemma" && <IpdViz speed={speed} accent={accent} />}
+        {algo === "Fictitious Play" && <FpViz speed={speed} accent={accent} />}
+        {algo === "Tit-for-Tat" && <TftViz speed={speed} accent={accent} />}
+        {algo === "El Farol Bar" && <ElFarolViz speed={speed} accent={accent} />}
       </div>
+
+      {/* Explanation + code BELOW (full width) */}
+      <InfoPanel algo={algo} accent={accent} />
     </div>
   );
 }
