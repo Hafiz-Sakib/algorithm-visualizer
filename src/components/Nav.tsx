@@ -65,7 +65,7 @@ const groups: { title: string; items: LinkItem[] }[] = [
     ],
   },
   {
-    title: "Backtracking",
+    title: "Backtracking & Game Theory",
     items: [
       {
         to: "/nqueens",
@@ -88,11 +88,6 @@ const groups: { title: string; items: LinkItem[] }[] = [
         color: "oklch(0.75 0.18 310)",
         desc: "Classic recursive puzzle",
       },
-    ],
-  },
-  {
-    title: "Game Theory",
-    items: [
       {
         to: "/gametheory",
         label: "Game Theory",
@@ -103,8 +98,15 @@ const groups: { title: string; items: LinkItem[] }[] = [
     ],
   },
   {
-    title: "More",
+    title: "Code Lab",
     items: [
+      {
+        to: "/cpprunner",
+        label: "C++ Runner",
+        icon: "{}",
+        color: "oklch(0.72 0.19 255)",
+        desc: "Step through C++ line by line",
+      },
       {
         to: "/library",
         label: "Library",
@@ -189,13 +191,14 @@ export function Nav() {
           </span>
         </Link>
 
-        {/* Desktop: a few quick links + an Explore mega-menu */}
+        {/* Desktop: quick links + Explore mega-menu */}
         <div className="hidden md:flex items-center gap-1" ref={menuRef}>
           {(
             [
               { to: "/sorting", label: "Sorting" },
               { to: "/searching", label: "Searching" },
               { to: "/pathfinding", label: "Pathfinding" },
+              { to: "/cpprunner", label: "C++ Runner" },
               { to: "/gametheory", label: "Game Theory" },
               { to: "/library", label: "Library" },
             ] as const

@@ -22,6 +22,7 @@ import { Route as GraphRouteImport } from './routes/graph'
 import { Route as GametheoryRouteImport } from './routes/gametheory'
 import { Route as DpRouteImport } from './routes/dp'
 import { Route as DeveloperRouteImport } from './routes/developer'
+import { Route as CpprunnerRouteImport } from './routes/cpprunner'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TreeRoute = TreeRouteImport.update({
@@ -89,6 +90,11 @@ const DeveloperRoute = DeveloperRouteImport.update({
   path: '/developer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CpprunnerRoute = CpprunnerRouteImport.update({
+  id: '/cpprunner',
+  path: '/cpprunner',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -97,6 +103,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cpprunner': typeof CpprunnerRoute
   '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
   '/gametheory': typeof GametheoryRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cpprunner': typeof CpprunnerRoute
   '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
   '/gametheory': typeof GametheoryRoute
@@ -130,6 +138,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cpprunner': typeof CpprunnerRoute
   '/developer': typeof DeveloperRoute
   '/dp': typeof DpRoute
   '/gametheory': typeof GametheoryRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/cpprunner'
     | '/developer'
     | '/dp'
     | '/gametheory'
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/cpprunner'
     | '/developer'
     | '/dp'
     | '/gametheory'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/cpprunner'
     | '/developer'
     | '/dp'
     | '/gametheory'
@@ -197,6 +209,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CpprunnerRoute: typeof CpprunnerRoute
   DeveloperRoute: typeof DeveloperRoute
   DpRoute: typeof DpRoute
   GametheoryRoute: typeof GametheoryRoute
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cpprunner': {
+      id: '/cpprunner'
+      path: '/cpprunner'
+      fullPath: '/cpprunner'
+      preLoaderRoute: typeof CpprunnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -317,6 +337,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CpprunnerRoute: CpprunnerRoute,
   DeveloperRoute: DeveloperRoute,
   DpRoute: DpRoute,
   GametheoryRoute: GametheoryRoute,

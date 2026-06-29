@@ -2089,13 +2089,13 @@ function DidYouKnow() {
 // ─── Original data ─────────────────────────────────────────────────────────
 const cards = [
   {
-    to: "/gametheory",
-    title: "Game Theory",
-    desc: "Nash equilibrium, minimax, prisoner's dilemma, fictitious play & more",
-    icon: "♟",
+    to: "/cpprunner",
+    title: "C++ Runner",
+    desc: "Step through C++ line by line — arithmetic, if/else, loops — with live variables & output",
+    icon: "{}",
     accent: "oklch(0.72 0.19 255)",
     glow: "oklch(0.72 0.19 255 / 15%)",
-    tag: "6 algorithms",
+    tag: "interactive",
   },
   {
     to: "/sorting",
@@ -2804,15 +2804,6 @@ function Index() {
       {/* New animated section #6 — Did You Know rotating facts */}
       <DidYouKnow />
 
-      {/* ===== Game Theory additions (non-destructive) ===== */}
-      <GameTheorySpotlight />
-      <PayoffMatrixDemo />
-      <StrategyShowdown />
-
-      {/* ===== Two more animated algorithm sections ===== */}
-      <BinarySearchHunt />
-      <DijkstraWaves />
-
       {/* CTA */}
       <motion.section
         initial={{ opacity: 0, scale: 0.96 }}
@@ -2869,229 +2860,5 @@ function Index() {
         </div>
       </motion.section>
     </div>
-  );
-}
-
-/* ====================================================================== */
-/* Game Theory homepage sections (added — existing sections untouched)    */
-/* ====================================================================== */
-
-function GameTheorySpotlight() {
-  const items = [
-    { icon: "⊞", name: "Nash Equilibrium", desc: "Mutual best-response cells", c: "oklch(0.72 0.19 255)" },
-    { icon: "🌲", name: "Minimax", desc: "Optimal play on a game tree", c: "oklch(0.68 0.22 22)" },
-    { icon: "🤝", name: "Iterated Dilemma", desc: "Strategy tournament", c: "oklch(0.75 0.18 162)" },
-    { icon: "📈", name: "Fictitious Play", desc: "Learning from history", c: "oklch(0.82 0.18 85)" },
-    { icon: "🔁", name: "Tit-for-Tat", desc: "Nice, retaliatory, forgiving", c: "oklch(0.75 0.18 310)" },
-    { icon: "🍺", name: "El Farol Bar", desc: "Crowds self-organize", c: "oklch(0.72 0.22 180)" },
-  ];
-  return (
-    <motion.section variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.15 }} className="space-y-4">
-      <motion.header variants={fadeUp} className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-2" style={{ background: "oklch(0.72 0.19 255 / 12%)", color: "oklch(0.72 0.19 255)", border: "1px solid oklch(0.72 0.19 255 / 25%)" }}>♟ New section</span>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Now playing: <span style={{ color: "oklch(0.72 0.19 255)" }}>Game Theory</span></h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Six animated strategy algorithms — each with synced Python code and an explanation.</p>
-        </div>
-        <Link to="/gametheory" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-105" style={{ background: "oklch(0.72 0.19 255)", color: "oklch(0.08 0.02 265)", boxShadow: "0 0 18px oklch(0.72 0.19 255 / 28%)" }}>Open Game Theory →</Link>
-      </motion.header>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((it) => (
-          <motion.div key={it.name} variants={fadeUp} whileHover={{ y: -4 }}>
-            <Link to="/gametheory" className="block rounded-2xl p-5 h-full" style={{ background: "oklch(0.12 0.025 265)", border: "1px solid oklch(1 0 0 / 8%)" }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.boxShadow = `0 8px 28px ${it.c}22, 0 0 0 1px ${it.c}33`)}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.boxShadow = "none")}>
-              <div className="flex items-center gap-2.5 mb-1.5"><span className="text-xl" style={{ color: it.c }}>{it.icon}</span><h3 className="font-semibold text-sm sm:text-base">{it.name}</h3></div>
-              <p className="text-xs sm:text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>{it.desc}</p>
-            </Link>
-          </motion.div>
-        ))}
-      </div>
-    </motion.section>
-  );
-}
-
-function PayoffMatrixDemo() {
-  const [a, setA] = useState<"silent" | "confess" | null>(null);
-  const [b, setB] = useState<"silent" | "confess" | null>(null);
-  const outcome = (() => {
-    if (!a || !b) return null;
-    if (a === "silent" && b === "silent") return { a: 1, b: 1, note: "Both cooperate → best collective outcome." };
-    if (a === "silent" && b === "confess") return { a: 5, b: 0, note: "A trusts, B betrays → A pays the price." };
-    if (a === "confess" && b === "silent") return { a: 0, b: 5, note: "A betrays, B trusts → B pays the price." };
-    return { a: 3, b: 3, note: "Both defect → the Nash equilibrium. Worse than cooperating!" };
-  })();
-  const Btn = ({ val, cur, set, label }: { val: "silent" | "confess"; cur: string | null; set: (v: "silent" | "confess") => void; label: string }) => (
-    <button onClick={() => set(val)} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-105" style={{ background: cur === val ? "oklch(0.72 0.19 255)" : "oklch(1 0 0 / 6%)", color: cur === val ? "oklch(0.08 0.02 265)" : "oklch(0.7 0.04 255)", border: "1px solid oklch(1 0 0 / 10%)" }}>{label}</button>
-  );
-  return (
-    <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }} className="space-y-4">
-      <header>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Play the Prisoner's Dilemma</h2>
-        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Pick a choice for each prisoner and watch the payoff. Years in prison — lower is better.</p>
-      </header>
-      <div className="grid gap-4 lg:grid-cols-[1fr_auto] items-start rounded-2xl p-5" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
-        <div className="grid grid-cols-[auto_1fr_1fr] gap-2">
-          <div />
-          {["B: Silent", "B: Confess"].map((c) => (<div key={c} className="text-center text-xs font-medium pb-1" style={{ color: "oklch(0.6 0.04 255)" }}>{c}</div>))}
-          {(["silent", "confess"] as const).map((ra) => (
-            <>
-              <div key={ra} className="flex items-center text-xs font-medium pr-2" style={{ color: "oklch(0.6 0.04 255)" }}>A: {ra === "silent" ? "Silent" : "Confess"}</div>
-              {(["silent", "confess"] as const).map((cb) => {
-                const lit = a === ra && b === cb;
-                const yrs = ra === "silent" && cb === "silent" ? "1 / 1" : ra === "silent" && cb === "confess" ? "5 / 0" : ra === "confess" && cb === "silent" ? "0 / 5" : "3 / 3";
-                return (<motion.div key={cb} animate={{ scale: lit ? 1.05 : 1 }} className="rounded-xl p-4 text-center font-mono font-bold" style={{ background: lit ? "oklch(0.72 0.19 255 / 22%)" : "oklch(1 0 0 / 4%)", border: `2px solid ${lit ? "oklch(0.72 0.19 255)" : "oklch(1 0 0 / 8%)"}`, boxShadow: lit ? "0 0 18px oklch(0.72 0.19 255 / 45%)" : "none", color: "oklch(0.85 0.02 255)" }}>{yrs}</motion.div>);
-              })}
-            </>
-          ))}
-        </div>
-        <div className="space-y-3 min-w-[220px]">
-          <div className="space-y-1.5"><div className="text-[10px] uppercase tracking-widest" style={{ color: "oklch(0.5 0.04 255)" }}>Prisoner A</div><div className="flex gap-1.5"><Btn val="silent" cur={a} set={setA} label="Stay Silent" /><Btn val="confess" cur={a} set={setA} label="Confess" /></div></div>
-          <div className="space-y-1.5"><div className="text-[10px] uppercase tracking-widest" style={{ color: "oklch(0.5 0.04 255)" }}>Prisoner B</div><div className="flex gap-1.5"><Btn val="silent" cur={b} set={setB} label="Stay Silent" /><Btn val="confess" cur={b} set={setB} label="Confess" /></div></div>
-          <AnimatePresence mode="wait">{outcome && (<motion.div key={outcome.note} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-xl px-3 py-2.5 text-xs" style={{ background: "oklch(0.72 0.19 255 / 12%)", border: "1px solid oklch(0.72 0.19 255 / 30%)", color: "oklch(0.85 0.02 255)" }}><div className="font-mono mb-1">A: {outcome.a} yr · B: {outcome.b} yr</div>{outcome.note}</motion.div>)}</AnimatePresence>
-        </div>
-      </div>
-    </motion.section>
-  );
-}
-
-function StrategyShowdown() {
-  const strategies = useMemo(() => [
-    { name: "Tit-for-Tat", c: "oklch(0.75 0.18 310)" },
-    { name: "Always Defect", c: "oklch(0.68 0.22 22)" },
-    { name: "Grudger", c: "oklch(0.82 0.18 85)" },
-    { name: "Always Cooperate", c: "oklch(0.75 0.18 162)" },
-    { name: "Random", c: "oklch(0.72 0.22 180)" },
-  ], []);
-  const targets = useMemo(() => [504, 421, 489, 398, 440], []);
-  const [vals, setVals] = useState(() => strategies.map(() => 0));
-  const ref = useRef<HTMLDivElement>(null);
-  const [seen, setSeen] = useState(false);
-  useEffect(() => { const el = ref.current; if (!el) return; const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setSeen(true); }, { threshold: 0.3 }); obs.observe(el); return () => obs.disconnect(); }, []);
-  useEffect(() => { if (!seen) return; let frame = 0; const id = window.setInterval(() => { frame++; setVals(targets.map((t) => Math.min(t, Math.round((t * frame) / 40)))); if (frame >= 40) window.clearInterval(id); }, 40); return () => window.clearInterval(id); }, [seen, targets]);
-  const max = Math.max(...targets);
-  return (
-    <motion.section ref={ref} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }} className="space-y-4">
-      <header>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Strategy showdown</h2>
-        <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>A round-robin Iterated Prisoner's Dilemma — the simple, forgiving Tit-for-Tat tends to come out on top.</p>
-      </header>
-      <div className="rounded-2xl p-5 space-y-3" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
-        {strategies.map((st, i) => (
-          <div key={st.name} className="flex items-center gap-3">
-            <span className="w-32 text-xs font-medium shrink-0 text-right" style={{ color: "oklch(0.7 0.04 255)" }}>{st.name}</span>
-            <div className="flex-1 h-7 rounded-md overflow-hidden" style={{ background: "oklch(1 0 0 / 5%)" }}>
-              <div className="h-full rounded-md flex items-center justify-end pr-2 transition-[width] duration-100 ease-out" style={{ width: `${(vals[i] / max) * 100}%`, background: `linear-gradient(90deg, ${st.c}, ${st.c})`, boxShadow: `0 0 12px ${st.c}55` }}><span className="text-[10px] font-mono font-bold text-white">{vals[i]}</span></div>
-            </div>
-          </div>
-        ))}
-        <div className="pt-1"><Link to="/gametheory" className="text-xs font-medium" style={{ color: "oklch(0.72 0.19 255)" }}>Run the full tournament step-by-step →</Link></div>
-      </div>
-    </motion.section>
-  );
-}
-
-/* ====================================================================== */
-/* Two more animated ALGORITHM sections                                   */
-/* ====================================================================== */
-
-// Binary Search — auto-looping animated hunt over a sorted array
-function BinarySearchHunt() {
-  const data = useMemo(() => Array.from({ length: 15 }, (_, i) => i * 7 + 3), []); // sorted
-  const target = 73; // = index 10 (10*7+3)
-  const steps = useMemo(() => {
-    const out: { lo: number; hi: number; mid: number; found: boolean }[] = [];
-    let lo = 0, hi = data.length - 1, found = false;
-    while (lo <= hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      const hit = data[mid] === target;
-      out.push({ lo, hi, mid, found: hit });
-      if (hit) { found = true; break; }
-      if (data[mid] < target) lo = mid + 1; else hi = mid - 1;
-    }
-    if (!found && out.length) out[out.length - 1].found = false;
-    return out;
-  }, [data]);
-  const [i, setI] = useState(0);
-  useEffect(() => { const id = window.setInterval(() => setI((x) => (x + 1) % (steps.length + 2)), 900); return () => window.clearInterval(id); }, [steps.length]);
-  const cur = steps[Math.min(i, steps.length - 1)];
-  const done = i >= steps.length - 1;
-  return (
-    <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }} className="space-y-4">
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Binary search, live</h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Halving the search space each step — find <span className="font-mono" style={{ color: "oklch(0.75 0.18 162)" }}>{target}</span> in a sorted array in O(log n).</p>
-        </div>
-        <Link to="/searching" className="text-xs font-medium" style={{ color: "oklch(0.75 0.18 162)" }}>Open Searching →</Link>
-      </header>
-      <div className="rounded-2xl p-5" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
-        <div className="flex gap-1.5 justify-center flex-wrap">
-          {data.map((v, idx) => {
-            const inRange = idx >= cur.lo && idx <= cur.hi;
-            const isMid = idx === cur.mid;
-            const hit = isMid && done && cur.found;
-            const color = hit ? "oklch(0.75 0.18 162)" : isMid ? "oklch(0.82 0.18 85)" : inRange ? "oklch(0.45 0.12 265)" : "oklch(0.22 0.04 265)";
-            return (
-              <motion.div key={idx} animate={{ scale: isMid ? 1.12 : 1, y: isMid ? -4 : 0 }} className="h-12 w-10 sm:w-11 rounded-lg grid place-items-center text-xs font-mono font-bold" style={{ background: color, color: inRange || isMid ? "oklch(0.08 0.02 265)" : "oklch(0.5 0.04 255)", boxShadow: isMid ? `0 0 14px ${color}` : "none", opacity: inRange || isMid ? 1 : 0.5 }}>{v}</motion.div>
-            );
-          })}
-        </div>
-        <div className="text-center mt-4 text-sm" style={{ color: "oklch(0.7 0.04 255)" }}>
-          {done && cur.found ? <span style={{ color: "oklch(0.75 0.18 162)" }}>Found {target} at index {cur.mid} 🎯</span> : <span>Checking middle of [{cur.lo}, {cur.hi}] → index {cur.mid} = {data[cur.mid]}</span>}
-        </div>
-      </div>
-    </motion.section>
-  );
-}
-
-// Dijkstra — animated expanding wavefront on a small grid
-function DijkstraWaves() {
-  const COLS = 16, ROWS = 8;
-  const src = { r: 3, c: 2 };
-  const dist = useMemo(() => {
-    // simple BFS-like layered distance (unit weights, 4-neighbour), no walls
-    const d = Array.from({ length: ROWS }, () => new Array(COLS).fill(Infinity));
-    const q: [number, number][] = [[src.r, src.c]];
-    d[src.r][src.c] = 0;
-    while (q.length) {
-      const [r, c] = q.shift()!;
-      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nr = r + dr, nc = c + dc;
-        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && d[nr][nc] === Infinity) { d[nr][nc] = d[r][c] + 1; q.push([nr, nc]); }
-      }
-    }
-    return d;
-  }, []);
-  const maxD = useMemo(() => Math.max(...dist.flat().filter((x) => x !== Infinity)), [dist]);
-  const [wave, setWave] = useState(0);
-  useEffect(() => { const id = window.setInterval(() => setWave((w) => (w + 1) % (maxD + 4)), 360); return () => window.clearInterval(id); }, [maxD]);
-  return (
-    <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }} className="space-y-4">
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.025em" }}>Dijkstra's wavefront</h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.04 255)" }}>Shortest-path search expands outward from the source like ripples, settling nearest nodes first.</p>
-        </div>
-        <Link to="/pathfinding" className="text-xs font-medium" style={{ color: "oklch(0.68 0.22 22)" }}>Open Pathfinding →</Link>
-      </header>
-      <div className="rounded-2xl p-5 overflow-hidden" style={{ background: "oklch(0.10 0.02 265)", border: "1px solid oklch(1 0 0 / 8%)" }}>
-        <div className="grid gap-1 mx-auto w-fit" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
-          {dist.map((row, r) => row.map((dval, c) => {
-            const settled = dval <= wave;
-            const onWave = dval === wave;
-            const isSrc = r === src.r && c === src.c;
-            const t = dval / maxD;
-            const bg = isSrc ? "oklch(0.82 0.18 85)" : settled ? `oklch(${0.65 - t * 0.3} 0.18 ${22 + t * 240})` : "oklch(0.18 0.03 265)";
-            return (<motion.div key={`${r}-${c}`} animate={{ scale: onWave ? 1.18 : 1 }} transition={{ duration: 0.25 }} className="h-5 w-5 sm:h-6 sm:w-6 rounded-[5px]" style={{ background: bg, boxShadow: onWave ? `0 0 10px ${bg}` : "none" }} />);
-          }))}
-        </div>
-        <div className="flex justify-center gap-3 mt-4 text-[11px]" style={{ color: "oklch(0.5 0.04 255)" }}>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "oklch(0.82 0.18 85)" }} />Source</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "oklch(0.6 0.18 120)" }} />Settled</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "oklch(0.18 0.03 265)" }} />Unvisited</span>
-        </div>
-      </div>
-    </motion.section>
   );
 }
