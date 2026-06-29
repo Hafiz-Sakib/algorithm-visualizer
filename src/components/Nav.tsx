@@ -245,7 +245,7 @@ export function Nav() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                className="absolute right-4 sm:right-6 top-14 w-[640px] max-w-[calc(100vw-2rem)] rounded-2xl p-4 grid grid-cols-2 gap-x-4 gap-y-4 shadow-2xl"
+                className="absolute right-4 sm:right-6 top-14 w-160 max-w-[calc(100vw-2rem)] rounded-2xl p-4 grid grid-cols-2 gap-x-4 gap-y-4 shadow-2xl"
                 style={{
                   background: "oklch(0.11 0.022 265 / 98%)",
                   border: "1px solid oklch(1 0 0 / 10%)",
@@ -386,7 +386,7 @@ export function Nav() {
       {/* subtle active-page indicator strip */}
       {active && (
         <div
-          className="hidden md:block absolute bottom-0 left-0 h-[2px] w-full opacity-60"
+          className="hidden md:block absolute bottom-0 left-0 h-0.5 w-full opacity-60"
           style={{
             background: `linear-gradient(90deg, transparent, ${active.color}, transparent)`,
           }}
